@@ -1,1 +1,1 @@
-
+This folder should contain everything needed to reproduce the experiment and anlyses conducted in Chapter 3 of the thesis, Exploring ‘Pathological’ Demand Avoidance (PDA): A Mixed-Methods Investigation of Sensory Processing, Uncertainty, and Anxiety in PDA
