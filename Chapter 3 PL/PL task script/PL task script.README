@@ -1,1 +1,3 @@
+Both of these scripts are run in Inquisit 6.
 
+The NT and ASC scripts a virtually identical, but the ASC script contains a few lines of code that force exit if a participant self-reports not being autistic.
