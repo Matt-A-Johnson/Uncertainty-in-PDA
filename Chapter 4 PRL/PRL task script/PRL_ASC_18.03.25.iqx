@@ -1,0 +1,3033 @@
+﻿PRL task 
+
+Stimuli: 2 choice, triangle and circle
+Trials: 80 trials per block
+Block 1: 80:20
+Block 2: 80:20 with reversals every 20 trials 
+Blocks presentation: randomised 50:50 between participants
+
+Set defaults:
+<defaults>
+/ screencolor = grey
+/ txbgcolor = grey
+/ canvasaspectratio = (11, 6.5)
+/ canvassize = (100%, 100%)
+/ txcolor = white
+</defaults>
+
+<monkey>
+/ latencydistribution = normal(10,2)
+/ percentcorrect = 100
+</monkey>
+
+**************************************************************************************************************
+**************************************************************************************************************
+	PARAMETERS
+**************************************************************************************************************
+**************************************************************************************************************
+
+<parameters>
+/leftKey = "e" 
+/rightKey = "i"
+/maxStimDuration = 4000
+</parameters>
+
+**************************************************************************************************************
+**************************************************************************************************************
+	DATA
+**************************************************************************************************************
+**************************************************************************************************************
+
+To change from one data file per participant to one data file for all participants, set
+/separatefiles = false
+
+***********************
+raw data file
+***********************
+
+<data>
+/ audit = true
+/ columns = (build, computer.platform, date, time, subject, blockcode, blocknum, trialcode, response, correct, values.consent, values.ProlificID,
+values.trialnum, values.trialcount, values.blockCount, values.blockorder, values.blockLabel, values.trialType, 
+values.ruleStart, values.correctChoice, values.correctChoicePosition, values.responseSide, values.correctResponse, 
+values.feedback, values.totalPoints, values.phaseCount, values.RTs, values.fixjit, values.submission)
+</data>
+
+***********************
+summary data file
+***********************
+<summarydata>
+/ columns = (inquisit.version, computer.platform, script.startDate, script.startTime, script.subjectId, script.groupId, script.sessionId, script.elapsedTime, 
+script.completed, expressions.UserID,
+expressions.C1, expressions.C2, expressions.C3, expressions.C4, expressions.C5, expressions.C6, expressions.C7, expressions.C8, expressions.C9, expressions.C10,
+expressions.Gender, expressions.Age, expressions.Neurotype,expressions.ASCid,expressions.ASCdiag,expressions.ASCdiagSpec,expressions.AgeASC,expressions.PDAid,
+expressions.PDAdiag,expressions.PDAdiagSpec,expressions.AgePDA,expressions.Relative,expressions.RelativeExp,expressions.DevHist,expressions.DevHistExp,expressions.AddNeurotype,
+expressions.NeurotypeInfo,expressions.Medi,expressions.MediExp,
+expressions.MASQ_2, expressions.MASQ_3, expressions.MASQ_9, expressions.MASQ_12, expressions.MASQ_15, expressions.MASQ_19, expressions.MASQ_20, expressions.MASQ_25, 
+expressions.MASQ_45, expressions.MASQ_48, expressions.MASQ_52, expressions.MASQ_55, expressions.MASQ_57, expressions.MASQ_59, expressions.MASQ_61, expressions.MASQ_63, 
+expressions.MASQ_65, expressions.MASQ_67, expressions.MASQ_69, expressions.MASQ_73, expressions.MASQ_75, expressions.MASQ_77, expressions.MASQ_79, expressions.MASQ_81, 
+expressions.MASQ_82, expressions.MASQ_85, expressions.MASQ_87, expressions.MASQ_88,
+expressions.EDAQ1, expressions.EDAQ2,expressions.EDAQ3,expressions.EDAQ4, expressions.EDAQ5, expressions.EDAQ6, expressions.EDAQ7, expressions.EDAQ8, expressions.EDAQ9, expressions.EDAQ10, 
+expressions.EDAQ11,expressions.EDAQ12,expressions.EDAQ13, expressions.EDAQ14, expressions.EDAQ15, expressions.EDAQ16, expressions.EDAQ17, expressions.EDAQ18, expressions.EDAQ19, expressions.EDAQ20,
+expressions.EDAQ21, expressions.EDAQ22,expressions.EDAQ23,expressions.EDAQ24, expressions.EDAQ25, expressions.EDAQ26
+values.totalPoints, values.trialcount)
+</summarydata>
+
+**************************************************************************************************************
+**************************************************************************************************************
+	VALUES: automatically updated
+**************************************************************************************************************
+**************************************************************************************************************
+                                    							
+<values>
+/ myvalue = 0
+
+/ consent = 0
+/ ProlificID = 0
+/ trialnum = 0
+/ rule = 0
+/ correctChoice = 0
+/ trialcount = 0
+/ fixjit = 0
+/ feedback = 0
+/ responseSide = ""
+/ correctResponse = ""
+/ totalPoints = 0
+/ ruleStart = 0
+/ blockorder = 0
+/ trialType = ""
+/ phaseCount = 0
+/ reversal = ""
+/ totalProgTrials = 160  
+/ currentProgTrial = 0 
+/ respCategory = ""
+/ correctChoicePosition = ""
+/ correctKey = 0
+/ incorrectKey = 0
+/ blockLabel = ""
+/ blockCount = 0
+/ RTs = 0
+/ submission = 0
+</values>
+
+**************************************************************************************************************
+**************************************************************************************************************
+	EXPRESSIONS
+**************************************************************************************************************
+**************************************************************************************************************
+
+<expressions>
+/UserID = (values.myvalue)
+/C1 = (checkboxes.consent_1.response)
+/C2 = (checkboxes.consent_2.response)
+/C3 = (checkboxes.consent_3.response)
+/C4 = (checkboxes.consent_4.response)
+/C5 = (checkboxes.consent_5.response)
+/C6 = (checkboxes.consent_6.response)
+/C7 = (checkboxes.consent_7.response)
+/C8 = (checkboxes.consent_8.response)
+/C9 = (checkboxes.consent_9.response)
+/C10 = (checkboxes.consent_10.response)
+
+/ updateProgress = (values.currentProgTrial += 1)
+/ barWidth = ((100 * values.currentProgTrial) / values.totalProgTrials)
+</expressions>
+
+**************************************************************************************************************
+**************************************************************************************************************
+	INSTRUCTIONS
+**************************************************************************************************************
+**************************************************************************************************************
+
+<instruct>
+/ fontstyle = ("Arial", 3.00%, false, false, false, false, 5, 1)
+</instruct>
+
+<text intro>
+/ items = ("On the next screen there is a shape selection task.<br><br> A fixation cross will appear in the middle of screen; throughout the task, please look directly at this fixation cross while it is on the screen.<br><br> Following the fixation cross, two shapes (a triangle and a circle) will be presented on the left and right sides of the screen... 
+")
+/ txbgcolor = grey
+/ position = (50%, 50%)
+/ fontstyle = ("Arial", 16pt)
+</text>
+
+<text intro2>
+/ items = ("<b><u>On each trial, choose either the circle or the triangle.</u></b> An arrow will indicate which shape you just chose.<br><br>Use the <b><u>'e' and 'i' buttons</u></b> on your keyboard to choose a shape - <b><u>'e' for the shape on the left</b></u>, and <b><u>'i' for the shape on the right</b></u>.<br><br>The shape you chose will either win you a point or lose you a point. Try to win as many points as you can.<br><br>Please try to respond as quickly and as accurately as possible. If you don't respond within four seconds, you will lose a point<br><br> This task will take approx. 15mins to complete - the grey progress bar displayed at the bottom of the screen will indicate your progress throughout the task.<br><br> Remember, if you wish to quit the experiment at any time, please press 'ctrl + q' on your keyboard (NOTE: you will be unable to return to the experiment after quitting).")
+/ txbgcolor = grey
+/ position = (50%, 50%)
+/ fontstyle = ("Arial", 16pt)
+</text>
+
+<text blockInfo>
+/ items = ("Block #<%values.countBlocks%> of 2")
+/ fontstyle = ("Arial", 5%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ vjustify = center
+/ size = (80%, 8%)
+/ txcolor = grey
+</text>
+
+<text start>
+/ items = ("<press spacebar to start>")
+/ fontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/ position = (50%, 90%)
+/ vjustify = center
+/ size = (80%, 8%)
+</text>
+
+<text finish>
+/ items = ("Thank you!")
+/ fontstyle = ("Arial", 8%, true, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (80%, 80%)
+/ vjustify = center
+</text>
+
+<text exit>
+/ items = ("<press spacebar to exit>")
+/ fontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/ position = (50%, 90%)
+/ size = (80%, 5%)
+/ vjustify = center
+</text>
+
+---
+
+<trial blockinfo>
+/ stimulusframes = [1 = blockInfo, start]
+/ validresponse = (" ")
+/ recorddata = false
+</trial>
+
+<trial intro>
+/ stimulusframes = [1 = intro, start]
+/ validresponse = (" ")
+/ recorddata = false
+</trial>
+
+<trial intro2>
+/ stimulusframes = [1 = intro2, start]
+/ validresponse = (" ")
+/ recorddata = false
+</trial>
+
+<trial finish>
+/ stimulusframes = [1 = clearScreen, finish]
+/ timeout = 500
+/ recorddata = false
+</trial>
+
+**************************************************************************************************************
+**************************************************************************************************************
+	LISTS	
+**************************************************************************************************************
+**************************************************************************************************************
+
+List randomly assigns the left (25%) or right (75%) screen position to the correct choice
+(the left over position is assigned to the incorrect choice)
+<list hpositions>
+/ items = (25%, 75%)
+/ replace = false
+/ resetinterval = 0
+/ selectionrate = always
+</list>
+
+**************************************************************************************************************
+**************************************************************************************************************
+	INTRO 
+**************************************************************************************************************
+**************************************************************************************************************
+
+<item Consenttitle>
+/ 1 = "Shape selection task"
+</item>
+
+<text Consenttitle>
+/ items = Consenttitle
+/ vjustify = center
+/ hjustify = center
+/ position = (50%, 25%)
+/ fontstyle = ("Arial", 10%, true, false, true, false, 5, 0)
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<text consent>
+/ items = ("Please read each statement carefully and click the 'Agree' button if you give consent. <u>If you wish to quit the experiment at any time, please press 'ctrl + q'<br> on your keyboard (NOTE: you will be unable to return to the experiment after quitting)</u>")
+/ fontstyle = ("Trebuchet MS", 2%, false, false, false, false, 5, 1)
+/ position = (50%, 20%)
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<checkboxes consent_1>
+/ caption="I understand that as part of this experiment I will be required to complete a set of questionnaires: the Extreme Demand Avoidance Questionnaire- Adult (EDA-QA) and the anxiety sub section of the Mood and Anxiety Symptom Quesitonnaire (MASQ). This will take around 15mins of my time."
+/ options=("Agree")
+/ range = (1,1)
+/ orientation = horizontal
+/ required = true // makes it so you can't skip past
+/ position = (5%,30%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<checkboxes consent_2>
+/ caption="I understand that some of the questions in this study may be considered sensitive in nature, relating to mental health, specifically anxiety; if you require support, please see the University of Aberdeen student support services webpage at www.abdn.ac.uk/students/support/. Alternatively, please see the National Autistic Society help page at www.autism.org.uk/whatwe-do/help-and-support and/or call the Samaritans on 116 123 or visit their website at www.samaritans.org."
+/ options=("Agree")
+/ range = (1,1)
+/ orientation = horizontal
+/ required = true // makes it so you can't skip past
+/ position = (5%,50%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<checkboxes consent_3>
+/ caption="I understand that in this experiment, I will be required to complete a shape selection task, which involves choosing one of two shapes presented on a computer screen. This will take around 15mins of my time (together with the questionnaires, the experiment will take approx. 30mins to complete)."
+/ options=("Agree")
+/ range = (1,1)
+/ orientation = horizontal
+/ required = true // makes it so you can't skip past
+/ position = (5%,30%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<checkboxes consent_4>
+/ caption="I understand that participation in this study is entirely voluntary and that I can withdraw from the study at any time without providing a reason by pressing 'ctrl + q'- <u>doing so will result in loss of reimbursement.</u> If I want to withdraw my data<u/>, I understand that I can do so without reason by <u>sending my User ID (<%values.myvalue = floor(rand(160001,165000))%>)</b></u> via email to the lead researcher (Matt Johnson; r02mj20@abdn.ac.uk) <b><u> within 2 weeks</u> of participating in this study."
+/ options=("Agree")
+/ range = (1,1)
+/ orientation = horizontal
+/ required = true // makes it so you can't skip past
+/ position = (5%,50%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<checkboxes consent_5>
+/ caption="Additionally, I understand that the command 'ctrl + b' is used to skip experimental sections, and that <b><u>pressing 'ctrl + b' at any time will result in loss of reimbursement.</u>"
+/ options=("Agree")
+/ range = (1,1)
+/ orientation = horizontal
+/ required = true // makes it so you can't skip past
+/ position = (5%,70%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<checkboxes consent_6>
+/ caption="I understand that I can discuss any concerns with the experimenters before or after participating:<br>
+Lead researcher contact: Matt Johnson (r02mj20@abdn.ac.uk)<br> 
+Supervisor contact: Dr Rama Chakravarthi (rama@abdn.ac.uk)."
+/ options=("Agree")
+/ range = (1,1)
+/ orientation = horizontal
+/ required = true // makes it so you can't skip past
+/ position = (5%,30%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<checkboxes consent_7>
+/ caption="I understand that the information provided by myself will be held anonymously so that it is impossible to trace this information back to me individually unless I quote my user ID to the lead researcher (Matt Johnson; r02mj20@abdn.ac.uk) within 2 weeks of participating in this study. Information will be held on a secure server and may be retained indefinitely." 
+/ options=("Agree")
+/ range = (1,1)
+/ orientation = horizontal
+/ required = true // makes it so you can't skip past
+/ position = (5%,50%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<checkboxes consent_8>
+/ caption="To ensure access to the data for the wider research community, the anonymous dataset may be archived in an online repository (e.g., the Open Science Framework, https://osf.io/) or sent to other researchers upon request for inspection."
+/ options=("Agree")
+/ range = (1,1)
+/ orientation = horizontal
+/ required = true // makes it so you can't skip past
+/ position = (5%,70%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<checkboxes consent_9>
+/ caption="I confirm that I am 18 years or older, and have normal or corrected to normal vision."
+/ options=("Agree")
+/ range = (1,1)
+/ orientation = horizontal
+/ required = true // makes it so you can't skip past
+/ position = (5%,30%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<checkboxes consent_10>
+/ caption="I confirm that the purpose, participation information, and data storage of this research have been sufficiently explained."
+/ options=("Agree")
+/ range = (1,1)
+/ orientation = horizontal
+/ required = true // makes it so you can't skip past
+/ position = (5%,40%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<checkboxes consent_11>
+/ caption="I understand that at the end of the experiment, I will be provided with additional information about the purpose of this research."
+/ options=("Agree")
+/ range = (1,1)
+/ orientation = horizontal
+/ required = true // makes it so you can't skip past
+/ position = (5%,50%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<checkboxes consent_12>
+/ caption="I consent to participating in this research conducted by postgraduate research student, Matt Johnson, in the School of Psychology, University of Aberdeen under the supervision of Dr Rama Chakravarthi and Dr Rachel Swainson.<br><br> Lead researcher contact: Matt Johnson (r02mj20@abdn.ac.uk)<br> Supervisor contact: Dr Rama Chakravarthi (rama@abdn.ac.uk); Dr Rachel Swainson (r.swainson@abdn.ac.uk)."
+/ options=("Agree")
+/ range = (1,1)
+/ orientation = horizontal
+/ required = true // makes it so you can't skip past
+/ position = (5%,60%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<shape backgroundcolor>
+/ shape = rectangle
+/ color = gray
+/ erase = false
+/ size = (100%, 100%)
+</shape>
+
+<surveypage Consenttitle>
+/ stimulustimes = [1=clearscreen, backgroundcolor, Consenttitle]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/txcolor = (0, 0, 0)
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ branch=[if (computer.platform == "and" || computer.platform == "ios" ) trial.forced_exit]
+</surveypage>
+
+<text t_forced_exit>
+/ items = ("We have detected that you are using a mobile device.<br>For this experiment please use a desktop or laptop with a computer keyboard.<br>Press 'Continue' to Exit and then restart the experiment with an appropriate device")
+/ position = (50%, 50%)
+/size = (50%, 50%)
+</text>
+
+<trial forced_exit>
+/ pretrialpause = 500
+/ stimulusframes = [1 = t_forced_exit, finish]
+/ showmousecursor = true
+/ inputdevice = mouse
+/ branch = [if (trial.forced_exit.response == "finish") script.abort()]
+/ validresponse = (finish)
+</trial>
+
+<surveypage consent1>
+/ stimulusframes = [1 = backgroundcolor, consent]
+/ questions = [1 = consent_1; 2 = consent_2]
+/ showmousecursor = true
+/ nextlabel = "Continue"
+/ nextbuttonposition = (85%, 85%)
+/ navigationbuttonfontstyle =  ("Trebuchet MS", 2.8%, false, false, false, false, 5, 1)
+/ showpagenumbers = false
+/ showquestionnumbers = false
+</surveypage>
+
+<surveypage consent2>
+/ stimulusframes = [1 = backgroundcolor, consent]
+/ questions = [1 = consent_3; 2 = consent_4; 3 = consent_5]
+/ showmousecursor = true
+/ nextlabel = "Continue"
+/ nextbuttonposition = (85%, 85%)
+/ navigationbuttonfontstyle =  ("Trebuchet MS", 2.8%, false, false, false, false, 5, 1)
+/ showpagenumbers = false
+/ showquestionnumbers = false
+</surveypage>
+
+<surveypage consent3>
+/ stimulusframes = [1 = backgroundcolor, consent]
+/ questions = [1 = consent_6; 2 = consent_7; 3 = consent_8]
+/ showmousecursor = true
+/ nextlabel = "Continue"
+/ nextbuttonposition = (85%, 85%)
+/ navigationbuttonfontstyle =  ("Trebuchet MS", 2.8%, false, false, false, false, 5, 1)
+/ showpagenumbers = false
+/ showquestionnumbers = false
+</surveypage>
+
+<surveypage consent4>
+/ stimulusframes = [1 = backgroundcolor, consent]
+/ questions = [1 = consent_9; 2 = consent_10; 3 = consent_11; 4 = consent_12]
+/ showmousecursor = true
+/ nextlabel = "Continue"
+/ nextbuttonposition = (85%, 85%)
+/ navigationbuttonfontstyle =  ("Trebuchet MS", 2.8%, false, false, false, false, 5, 1)
+/ showpagenumbers = false
+/ showquestionnumbers = false
+</surveypage>
+
+<block Consent>
+/ trials = [1 = Consenttitle; 2 = consent1; 3 = consent2; 4 = consent3; 5 = consent4]
+/ onblockend = [
+	if (surveypage.consent4.correct == 1)
+	values.consent= 1;
+]
+</block>
+
+
+#########################################################################################################
+
+################################### Demographics ########################################################
+
+#########################################################################################################
+
+<expressions>
+/Gender = (radiobuttons.Gender.selectedcaption)
+/Age = (dropdown.Age.selectedcaption)
+/Neurotype = (radiobuttons.Neurotype.selectedcaption)
+/ASCid = (radiobuttons.ASCid.selectedcaption)
+/ASCdiag = (radiobuttons.ASCdiag.selectedcaption)
+/ASCdiagSpec = (textbox.ASCdiagSpec.response)
+/AgeASC = (dropdown.AgeASC.selectedcaption)
+/PDAid = (radiobuttons.PDAid.selectedcaption)
+/PDAdiag = (radiobuttons.PDAdiag.selectedcaption)
+/PDAdiagSpec = (textbox.ASCdiagSpec.response)
+/AgePDA = (dropdown.AgePDA.selectedcaption)
+/Relative = (radiobuttons.Relative.selectedcaption)
+/RelativeExp = (checkboxes.RelativeExp.response)
+/DevHist = (radiobuttons.DevHist.selectedcaption)
+/DevHistExp = (textbox.DevHistExp.response)
+/AddNeurotype = (radiobuttons.AddNeurotype.selectedcaption)
+/NeurotypeInfo = (textbox.NeurotypeInfo.response)
+/Medi = (radiobuttons.Medi.selectedcaption)
+/MediExp = (textbox.MediExp.response)
+</expressions>
+
+Create demographic questions and answers:
+<textbox ProlificID>
+/ caption = "This is your user ID, please make a note of this number: <b><u><%values.myvalue%></b></u><br> 
+If you later wish to withdraw your data, please send an email to the lead researcher (Matt Johnson; r02mj20@abdn.ac.uk) quoting your user ID number within 2 weeks of participating in this study. 
+Please note that without your user ID, you will not be able to withdraw your data after submission. <br><br><br><br>
+If you are accessing this study via Prolific, please enter your Prolific ID here (if you do not have a Prolific ID, please put 'NA'):"
+/ textboxsize = (60%, 30%)
+/ multiline = true
+/ required = true
+</textbox>
+
+<radiobuttons Gender>
+/caption = "What is your gender?"
+/options = ("Female", "Male", "Other")
+/optionvalues = ("1", "2", "3")
+/required = true
+/orientation = vertical
+</radiobuttons>
+
+<radiobuttons Neurotype>
+/ caption = "Which statement best decsribes you?"
+/ options = ("I identify as neurotypical", "I identify as a neurotype other than neurotypical (e.g., autistic, ADHD, dyslexic, etc.)", "Not sure")
+/ optionvalues = ("2", "1", "0")
+/ required = true
+/ orientation = vertical
+</radiobuttons>
+
+<dropdown Age>
+/ caption = "What is your age?"
+/ options = ("18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50",
+"51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68","69","70","71","72","73","74","75","76","77","78","79","80","81","82","83","84","85","86",
+"87","88","89","90+")
+/ required = true
+</dropdown>
+
+<radiobuttons ASCid>
+/ caption = "Do you consider yourself to be autistic?"
+/ options = ("Yes", "No", "Not sure")
+/ optionvalues = ("1", "0", "2")
+/ required = true
+/ orientation = vertical
+</radiobuttons>
+
+<radiobuttons ASCdiag>
+/ caption = "Have you received a formal clinical diagnosis of autism spectrum disorder, made by a psychiatrist, psychologist, or other qualified medical specialist? This includes Asperger’s syndrome, Autism Disorder, High Functioning Autism or Pervasive Developmental Disorder"
+/ options = ("Yes", "No")
+/ optionvalues = ("1", "0")
+/ required = true
+/ orientation = vertical
+</radiobuttons>
+
+<textbox ASCdiagSpec>
+/ caption = "Please tell us a bit about your diagnosis (e.g., what is your diagnosis, where did you receive it, etc.)? If you don't wish to tell us about your diagnosis, please put 'na' in the box below."
+/ textboxsize = (60%, 30%)
+/ multiline = true
+/ required = true
+</textbox>
+
+<dropdown AgeASC>
+/ caption = "At what age did you receive your diagnosis?"
+/ options = ("NA", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18","19","20","21","22","23","24","25","26","27","28","29","30","31","32",
+"33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68",
+"69","70","71","72","73","74","75","76","77","78","79","80","81","82","83","84","85","86", "87","88","89","90+")
+/ required = true
+</dropdown>
+
+<radiobuttons PDAid>
+/ caption = "Do you identify with Pathological Demand Avoidance (PDA)?"
+/ options = ("Yes", "No", "Not sure")
+/ optionvalues = ("1", "0", "2")
+/ required = true
+/ orientation = vertical
+</radiobuttons>
+
+<radiobuttons PDAdiag>
+/ caption = "Do you have a diagnosis of PDA?"
+/ options = ("Yes", "No")
+/ optionvalues = ("1", "0")
+/ required = true
+/ orientation = vertical
+</radiobuttons>
+
+<textbox PDAdiagSpec>
+/ caption = "Please tell us a bit about your diagnosis (e.g., what is your diagnosis, where did you receive it, etc.)? If you don't wish to tell us about your diagnosis, please put 'na' in the box below."
+/ textboxsize = (60%, 30%)
+/ multiline = true
+/ required = true
+</textbox>
+
+<dropdown AgePDA>
+/ caption = "At what age did you receive your diagnosis?"
+/ options = ("NA", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18","19","20","21","22","23","24","25","26","27","28","29","30","31","32",
+"33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68",
+"69","70","71","72","73","74","75","76","77","78","79","80","81","82","83","84","85","86", "87","88","89","90+")
+/ required = true
+</dropdown>
+
+#####################################################################################################################################################################################################
+#####################################################################################################################################################################################################
+#####################################################################################################################################################################################################
+
+<radiobuttons Relative>
+/ caption = "Do you have a biological first-degree relative with a formal autism diagnosis?"
+/ options = ("Yes", "No", "Prefer not to say")
+/ optionvalues = ("1", "0", "2")
+/ required = true
+/ orientation = vertical
+</radiobuttons>
+
+<checkboxes RelativeExp>
+/ caption = "Please tell us how you are related to your biological first-degree relative with a formal autism diagnosis. Please indicate all that apply."
+/ options=("They are my parent", "They are my sibling (not twin)", "They are my sibling (twin)", "They are my child", "Prefer not to say")
+/ other = "Other"
+/ range = (1,6)
+/ orientation = vertical
+/ required = true // makes it so you can't skip past
+/ position = (5%,30%) 
+/ fontstyle = ("Trebuchet MS", 2.5%, false, false, false, false, 5, 1)
+</checkboxes>
+
+<radiobuttons DevHist>
+/ caption = "Do you have a history of developmental, psychiatric, and/or learning difficulties?"
+/ options = ("Yes", "No", "Prefer not to say")
+/ optionvalues = ("1", "0", "2")
+/ required = true
+/ orientation = vertical
+</radiobuttons>
+
+<textbox DevHistExp>
+/ caption = "Please tell us about your developmental, psychiatric, and/or learning difficulties (e.g., Which developmental, psychiatric, and/or learning difficulties do you experience? How do you experience these difficulties? etc.) If you don't wish to answer this question, please put 'na' in the box below."
+/ textboxsize = (60%, 30%)
+/ multiline = true
+/ required = true
+</textbox>
+
+#####################################################################################################################################################################################################
+#####################################################################################################################################################################################################
+#####################################################################################################################################################################################################
+<radiobuttons AddNeurotype>
+/ caption = "Other than autism or PDA, do you identify as any other neurotype (e.g., ADHD, dyslexic, etc.)?"
+/ options = ("Yes", "No", "Not sure")
+/ optionvalues = ("1", "0", "2")
+/ required = true
+/ orientation = vertical
+</radiobuttons>
+
+<textbox NeurotypeInfo>
+/ caption = "Please tell us about your neurotype (e.g., What is your neurotype (e.g., ADHD, dyslexic, some combination, etc.)? Do you have a formal diagnosis? etc.) If you don't wish to tell us about your diagnosis, please put 'na' in the box below."
+/ textboxsize = (60%, 30%)
+/ multiline = true
+/ required = true
+</textbox>
+
+<radiobuttons Psych>
+/ caption = "Do you have a current psychiatric diagnosis?"
+/ options = ("Yes", "No", "Prefer not to say")
+/ optionvalues = ("1", "0", "2")
+/ required = true
+/ orientation = vertical
+</radiobuttons>
+
+<textbox PsychExp>
+/ caption = "Please tell us about your psychiatric diagnosis. For example...<br><br> What is your diagnosis?<br><br> How old were you when you received this diagnosis? etc.<br><br> If you don't wish to answer this question, please put 'na' in the box below."
+/ textboxsize = (60%, 30%)
+/ multiline = true
+/ required = true
+</textbox>
+
+<radiobuttons Medi>
+/ caption = "Are you currently taking stimulants, or any other kind of medication?"
+/ options = ("Yes", "No", "Prefer not to say")
+/ optionvalues = ("1", "0", "2")
+/ required = true
+/ orientation = vertical
+</radiobuttons>
+
+<textbox MediExp>
+/ caption = "Please tell us about your medication (e.g., What medication are you taking? How long have you been taking this medication? When was the last time you took this medication? etc.) If you don't wish to answer this question, please put 'na' in the box below."
+/ textboxsize = (60%, 30%)
+/ multiline = true
+/ required = true
+</textbox>
+
+#####################################################################################################################################################################################################
+#####################################################################################################################################################################################################
+#####################################################################################################################################################################################################
+
+Create title page:
+<item DemoTitle>
+/ 1 = "Demographics"
+</item>
+
+<text DemoTitle>
+/ items = DemoTitle
+/ vjustify = center
+/ hjustify = center
+/ position = (50%, 25%)
+/ fontstyle = ("Arial", 10%, true, false, true, false, 5, 0)
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<surveypage DemoTitle>
+/ stimulustimes = [1=clearscreen, DemoTitle]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+</surveypage>
+
+Create survey pages for each set of quesitons starting with age and gender:
+<surveypage ProlificID>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = ProlificID]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/ recorddata = true
+/finishlabel = "Continue"
+</surveypage>
+
+<surveypage Demo1>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = Gender; 2 = Age]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+</surveypage>
+
+<surveypage Neurotype>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = Neurotype]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+</surveypage>
+
+Survey page for quesitons pertainng to autism:
+<surveypage DemoASCid>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = ASCid]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2) ]
+</surveypage>
+
+
+Survey page for quesitons pertainng to autism:
+<surveypage DemoASCdiag>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = ASCdiag]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2) ]
+/ skip = [(radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2) ]
+</surveypage>
+
+Survey page for quesitons pertainng to autism:
+<surveypage DemoASCdiagSpec>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = ASCdiagSpec]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0) ]
+</surveypage>
+
+<surveypage DemoASCAge>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = AgeASC]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0)]
+</surveypage>
+
+Survey page for quesitons pertaining to PDA:
+<surveypage DemoPDA>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = PDAid]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0)]
+</surveypage>
+
+<surveypage DemoPDAdiag>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = PDAdiag]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0 || radiobuttons.PDAid.response == 0)]
+</surveypage>
+
+<surveypage DemoPDAdiagSpec>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = PDAdiagSpec]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0 || radiobuttons.PDAid.response == 0 || radiobuttons.PDAdiag.response == 0)]
+</surveypage>
+
+<surveypage DemoPDAage>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = AgePDA]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0 || radiobuttons.PDAid.response == 0 || radiobuttons.PDAdiag.response == 0)]
+</surveypage>
+
+Survey page for quesitons pertainng to neurotype:
+<surveypage AddNeurotype>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = AddNeurotype]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0)]
+</surveypage>
+
+<surveypage NeurotypeInfo>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = NeurotypeInfo]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0 || radiobuttons.AddNeurotype.response == 0)]
+</surveypage>
+
+<surveypage Relative>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = Relative]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0)]
+</surveypage>
+
+<surveypage RelativeExp>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = RelativeExp]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0 || radiobuttons.Relative.response == 2 || radiobuttons.Relative.response == 0)]
+</surveypage>
+
+<surveypage DevHist>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = DevHist]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0)]
+</surveypage>
+
+<surveypage DevHistExp>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = DevHistExp]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0 || radiobuttons.DevHist.response == 2 || radiobuttons.DevHist.response == 0) ]
+</surveypage>
+
+<surveypage Psych>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = Psych]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0)]
+</surveypage>
+
+<surveypage PsychExp>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = PsychExp]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0 || radiobuttons.Psych.response == 2 || radiobuttons.Psych.response == 0) ]
+</surveypage>
+
+<surveypage Medi>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = Medi]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0)]
+</surveypage>
+
+<surveypage MediExp>
+/ caption = "Please answer the following questions:"
+/ questions = [1 = MediExp]
+/ recorddata = true
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Continue"
+/ skip = [(radiobuttons.Neurotype.response == 2 || radiobuttons.ASCid.response == 0 || radiobuttons.ASCid.response == 2 || radiobuttons.ASCdiag.response == 0 || radiobuttons.Medi.response == 2 || radiobuttons.Medi.response == 0) ]
+</surveypage>
+
+Survey page presentation:
+<survey Demo>
+/ pages = [1 = DemoTitle; 2 = ProlificID; 3 = Demo1; 4 = Neurotype; 5 = DemoASCid; 6 = DemoASCdiag; 7 = DemoASCdiagSpec; 8 = DemoASCAge; 
+9 = DemoPDA; 10 = DemoPDAdiag; 11 = DemoPDAdiagSpec; 12 = DemoPDAage; 13 = AddNeurotype; 14 = NeurotypeInfo; 15 = Relative; 16 = RelativeExp;
+17 = DevHist; 18 = DevHistExp; 19 =  Medi; 20 = MediExp]
+/ onblockend = [
+	if (surveypage.ProlificID.correct == 1)
+	values.ProlificID = 1;
+]
+</survey>
+
+#########################################################################################################
+
+<item ineligibleText>
+/ 1 = "You are ineligible for this study as you have provided information which is inconsistent with your Prolific prescreening responses. Please return to Prolific to return your submission.
+
+You can exit the study now by pressing 'Ctrl-Q' on your keyboard"
+</item>
+
+<text ineligibleText>
+/ items = ineligibleText
+/ vjustify = center
+/ hjustify = center
+/ position = (50%, 40%)
+/ fontstyle = ("Arial", 2%, false, false, false, false, 5, 0)
+/ txbgcolor = gray
+/ txcolor = white
+/ width = 52%
+/ hjustify = center
+</text>
+
+<button Return>
+/ caption = "Return" // click to continue
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 1)
+/ size = (20%, 5%)
+/ position = (50%, 60%)
+</button>
+
+<trial ineligibleT>
+/ stimulustimes = [1=clearscreen, ineligibleText]
+/ inputdevice = mouse
+/ validresponse = ("Return")
+/ correctresponse=("Return")
+/ recorddata = true
+/ skip = [(radiobuttons.Neurotype.response == 1 && radiobuttons.Neurotype.response == 0) ]
+/ skip = [(radiobuttons.ASCid.response == 1 && radiobuttons.ASCdiag.response == 1) ]
+
+</trial>
+
+<block ineligible>
+/ trials = [1 = ineligibleT]
+</block>
+
+
+#########################################################################################################
+
+####################################### Questionnaires ##################################################
+
+#########################################################################################################
+
+
+Set page instructions for each questionnaire:
+<parameters>
+/pageinstructions1 = "<b>Below is a list of feelings, sensations, problems, and experiences that people sometimes have.
+Read each item and then mark the appropriate choice in the space next to that item. Use the choice
+that best describes how much you have felt or experienced things this way <u>during the past week,
+including today</u>. Use this scale when answering:</b>"
+/pageinstructions2 = "<b>Please answer the next questions thinking about your behaviour <u>during the last six months</u>. Please read each item carefully and click the answer that best applies. For each question, you can choose from four possible options: ‘Not’, ‘Somewhat true’, ‘Mostly true’ and ‘Very True’. Please answer all items. There are no right or wrong answers.</b>"
+/postinstructions = "Thank you!"
+</parameters>
+
+<expressions> 
+/MASQ_2 = (radiobuttons.MASQ_2.selectedcaption)
+/MASQ_3 = (radiobuttons.MASQ_3.selectedcaption)
+/MASQ_9 = (radiobuttons.MASQ_9.selectedcaption)
+/MASQ_12 = (radiobuttons.MASQ_12.selectedcaption)
+/MASQ_15 = (radiobuttons.MASQ_15.selectedcaption)
+/MASQ_19 = (radiobuttons.MASQ_19.selectedcaption)
+/MASQ_20 = (radiobuttons.MASQ_20.selectedcaption)
+/MASQ_25 = (radiobuttons.MASQ_25.selectedcaption)
+/MASQ_45 = (radiobuttons.MASQ_45.selectedcaption)
+/MASQ_48 = (radiobuttons.MASQ_48.selectedcaption)
+/MASQ_52 = (radiobuttons.MASQ_52.selectedcaption)
+/MASQ_55 = (radiobuttons.MASQ_55.selectedcaption)
+/MASQ_57 = (radiobuttons.MASQ_57.selectedcaption)
+/MASQ_59 = (radiobuttons.MASQ_59.selectedcaption)
+/MASQ_61 = (radiobuttons.MASQ_61.selectedcaption)
+/MASQ_63 = (radiobuttons.MASQ_63.selectedcaption)
+/MASQ_65 = (radiobuttons.MASQ_65.selectedcaption)
+/MASQ_67 = (radiobuttons.MASQ_67.selectedcaption)
+/MASQ_69 = (radiobuttons.MASQ_69.selectedcaption)
+/MASQ_73 = (radiobuttons.MASQ_73.selectedcaption)
+/MASQ_75 = (radiobuttons.MASQ_75.selectedcaption)
+/MASQ_77 = (radiobuttons.MASQ_77.selectedcaption)
+/MASQ_79 = (radiobuttons.MASQ_79.selectedcaption)
+/MASQ_81 = (radiobuttons.MASQ_81.selectedcaption)
+/MASQ_82 = (radiobuttons.MASQ_82.selectedcaption)
+/MASQ_85 = (radiobuttons.MASQ_85.selectedcaption)
+/MASQ_87 = (radiobuttons.MASQ_87.selectedcaption)
+/MASQ_88 = (radiobuttons.MASQ_88.selectedcaption)
+/EDAQ1 = (radiobuttons.EDAQ_1.selectedcaption)
+/EDAQ2 = (radiobuttons.EDAQ_2.selectedcaption)
+/EDAQ3 = (radiobuttons.EDAQ_3.selectedcaption)
+/EDAQ4 = (radiobuttons.EDAQ_4.selectedcaption)
+/EDAQ5 = (radiobuttons.EDAQ_5.selectedcaption)
+/EDAQ6 = (radiobuttons.EDAQ_6.selectedcaption)
+/EDAQ7 = (radiobuttons.EDAQ_7.selectedcaption)
+/EDAQ8 = (radiobuttons.EDAQ_8.selectedcaption)
+/EDAQ9 = (radiobuttons.EDAQ_9.selectedcaption)
+/EDAQ10 = (radiobuttons.EDAQ_10.selectedcaption)
+/EDAQ11 = (radiobuttons.EDAQ_11.selectedcaption)
+/EDAQ12 = (radiobuttons.EDAQ_12.selectedcaption)
+/EDAQ13 = (radiobuttons.EDAQ_13.selectedcaption)
+/EDAQ14 = (radiobuttons.EDAQ_14.selectedcaption)
+/EDAQ15 = (radiobuttons.EDAQ_15.selectedcaption)
+/EDAQ16 = (radiobuttons.EDAQ_16.selectedcaption)
+/EDAQ17 = (radiobuttons.EDAQ_17.selectedcaption)
+/EDAQ18 = (radiobuttons.EDAQ_18.selectedcaption)
+/EDAQ19 = (radiobuttons.EDAQ_19.selectedcaption)
+/EDAQ20 = (radiobuttons.EDAQ_20.selectedcaption)
+/EDAQ21 = (radiobuttons.EDAQ_21.selectedcaption)
+/EDAQ22 = (radiobuttons.EDAQ_22.selectedcaption)
+/EDAQ23 = (radiobuttons.EDAQ_23.selectedcaption)
+/EDAQ24 = (radiobuttons.EDAQ_24.selectedcaption)
+/EDAQ25 = (radiobuttons.EDAQ_25.selectedcaption)
+/EDAQ26 = (radiobuttons.EDAQ_26.selectedcaption)
+</expressions>
+
+Create individual MASQ (anxiety  subscales) questionnaire items (1-28):
+<radiobuttons MASQ_2>
+/caption = "Felt afraid"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_3>
+/caption = "Startled easily"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_9>
+/caption = "Felt nauseous"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_12>
+/caption = "Had diarrhea"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_15>
+/caption = "Felt nervous"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_19>
+/caption = "Felt faint"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_20>
+/caption = "Felt uneasy"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_25>
+/caption = "Felt numbness or tingling in my body"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_45>
+/caption = "Had pain in my chest"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_48>
+/caption = "Had hot or cold spells"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_52>
+/caption = "Felt dizzy or lightheaded"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_55>
+/caption = "Was short of breath"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_57>
+/caption = "Hands were shaky"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_59>
+/caption = "Was unable to relax"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_61>
+/caption = "Felt like I was choking"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_63>
+/caption = "Had an upset stomach"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_65>
+/caption = "Had a lump in my throat"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_67>
+/caption = "Had a very dry mouth"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_69>
+/caption = "Muscles twitched or trembled"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_73>
+/caption = "Was afraid I was going to die"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_75>
+/caption = "Heart was racing or pounding"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_77>
+/caption = "Felt tense or 'high-strung'"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_79>
+/caption = "Was trembling or shaking"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_81>
+/caption = "Muscles were tense or sore"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_82>
+/caption = "Felt keyed up, 'on edge'"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_85>
+/caption = "Had to urinate frequently"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_87>
+/caption = "Had trouble swallowing"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons MASQ_88>
+/caption = "Hands were cold or sweaty"
+/options = ("Not~nat all", "A little~nbit", "Moderately", "Quite~na bit", "Extremely")
+/optionvalues = ("1", "2", "3", "4", "5")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+Create individual EDA-QA questionnaire items (1-26), inc. item scores accounting for reverse scoring:
+<radiobuttons EDAQ_1>
+/caption = "I obsessively resist and avoid ordinary demands and requests"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_2>
+/caption = "I complain about illness or physical incapacity to avoid a request or demand"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_3>
+/caption = "I am driven by the need to be in charge"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_4>
+/caption = "I find everyday pressures (e.g. having to go on a routine trip/visit dentist) intolerably stressful"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_5>
+/caption = "I tell other people how they should behave, but do not feel these rules apply to me"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_6>
+/caption = "I mimic other people’s mannerisms and styles (e.g., use phrases adopted from other people to express myself to others)"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_7>
+/caption = "I have difficulty complying with demands and requests from others unless they are carefully presented"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_8>
+/caption = "I take on roles or characters (from TV/real life) and ‘act them out’"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_9>
+/caption = "I show little shame or embarrassment (e.g., I might throw a tantrum in public and not be embarrassed)"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_10>
+/caption = "I invent fantasy worlds or games and act them out"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_11>
+/caption = "I am good at getting around others and making them do as I want"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_12>
+/caption = "I am unaware or indifferent to the differences between myself and figures of authority (e.g. parents, teachers, and police)"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_13>
+/caption = "I will still sometimes have a ‘meltdown’ (e.g. scream, tantrum, hit, or kick) if I feel pressurized to do something"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_14>
+/caption = "I like to be told I have done a good job"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("3", "2", "1", "0")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_15>
+/caption = "I have a very rapidly changing mood (e.g., I can switch from affectionate to angry in an instant)"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_16>
+/caption = "I know what to do or say to upset particular people"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_17>
+/caption = "I blame or target a particular person/persons"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_18>
+/caption = "I deny things I have done, even if I am caught “red-handed”"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_19>
+/caption = "I can be distracted (preoccupied) ‘from within’ (i.e., absorbed in my own world)"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_20>
+/caption = "I make an effort to maintain my reputation with other people"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("3", "2", "1", "0")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_21>
+/caption = "I sometimes use outrageous or shocking behaviour to get out of doing something"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_22>
+/caption = "I have periods when I have extremely emotional responses (e.g. crying/giggling, becoming furious) to what others would think small events"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_23>
+/caption = "I ensure any social interaction is on my own terms"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_24>
+/caption = "I prefer to interact with others in an adopted role or communicate through props or objects"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_25>
+/caption = "I seek to quibble and change rules set by others"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<radiobuttons EDAQ_26>
+/caption = "I can be passive and difficult to engage"
+/options = ("Not~nTrue", "Somewhat~nTrue", "Mostly~nTrue", "Very~nTrue")
+/optionvalues = ("0", "1", "2", "3")
+/required = False
+/orientation = horizontalequal
+/ txcolor = white
+</radiobuttons>
+
+<text footnote>
+    / items = ("(c) 1991, D. B. Watson & L. A. Clark")
+    / position = (50%, 90%)  // Adjust the position as needed
+    / fontstyle = ("Arial", 12pt, false, false, false, false, 0, 0, 0)
+</text>
+
+Create survey pages to present the MASQ, 4 items per page, inc. instructions on first page only:
+<surveypage MASQ1>
+/caption ="<%parameters.pageinstructions1%>"
+/ subcaption = "(c) 1991, D. B. Watson & L. A. Clark"
+/questions = [1 = MASQ_2, MASQ_3, MASQ_9, MASQ_12]
+/ txcolor = white
+</surveypage>
+
+<surveypage MASQ2>
+/ subcaption = "(c) 1991, D. B. Watson & L. A. Clark"
+/questions = [1 = MASQ_15, MASQ_19, MASQ_20, MASQ_25]
+</surveypage>
+
+<surveypage MASQ3>
+/ subcaption = "(c) 1991, D. B. Watson & L. A. Clark"
+/questions = [1 = MASQ_45, MASQ_48, MASQ_52, MASQ_55]
+</surveypage>
+
+<surveypage MASQ4>
+/ subcaption = "(c) 1991, D. B. Watson & L. A. Clark"
+/questions = [1 = MASQ_57, MASQ_59, MASQ_61, MASQ_63]
+</surveypage>
+
+<surveypage MASQ5>
+/ subcaption = "(c) 1991, D. B. Watson & L. A. Clark"
+/questions = [1 = MASQ_65, MASQ_67, MASQ_69, MASQ_73]
+</surveypage>
+
+<surveypage MASQ6>
+/ subcaption = "(c) 1991, D. B. Watson & L. A. Clark"
+/questions = [1 = MASQ_75, MASQ_77, MASQ_79, MASQ_81]
+</surveypage>
+
+<surveypage MASQ7>
+/ subcaption = "(c) 1991, D. B. Watson & L. A. Clark"
+/questions = [1 = MASQ_82, MASQ_85, MASQ_87, MASQ_88]
+</surveypage>
+
+Create survey pages to present the EDA-QA, 4 items per page, inc. instructions on first page only:
+<surveypage EDAQ1>
+/caption ="<%parameters.pageinstructions2%>"
+/questions = [1 = EDAQ_1, EDAQ_2, EDAQ_3, EDAQ_4]
+/ txcolor = white
+</surveypage>
+
+<surveypage EDAQ2>
+/questions = [1 = EDAQ_5, EDAQ_6, EDAQ_7, EDAQ_8]
+</surveypage>
+
+<surveypage EDAQ3>
+/questions = [1 = EDAQ_9, EDAQ_10, EDAQ_11, EDAQ_12]
+</surveypage>
+
+<surveypage EDAQ4>
+/questions = [1 = EDAQ_13, EDAQ_14, EDAQ_15, EDAQ_16]
+</surveypage>
+
+<surveypage EDAQ5>
+/questions = [1 = EDAQ_17, EDAQ_18, EDAQ_19, EDAQ_20]
+</surveypage>
+
+<surveypage EDAQ6>
+/questions = [1 = EDAQ_21, EDAQ_22, EDAQ_23, EDAQ_24]
+</surveypage>
+
+<surveypage EDAQ7>
+/questions = [1 = EDAQ_25, EDAQ_26]
+</surveypage>
+
+<surveypage End>
+/caption ="<%parameters.postinstructions%>"
+/ txcolor = white
+</surveypage>
+
+Create survey:
+Notes:
+- presents the surveypages
+- to take pictures of each screen set /screencapture = true
+- include navigation and "Finish" buttons at bottom left and right of screen
+<survey MASQ_EDAQ>
+/pages = [
+	
+	1 = MASQ1;
+	2 = MASQ2;
+	3 = MASQ3;
+	4 = MASQ4;
+	5 = MASQ5;
+	6 = MASQ6;
+	7 = MASQ7;
+	8 = EDAQ1;
+	9 = EDAQ2;
+	10 = EDAQ3;
+	11 = EDAQ4;
+	12 = EDAQ5;
+	13 = EDAQ6;
+	14 = EDAQ7;
+	15 = End
+]
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Finish"
+/ recorddata = true
+</survey>
+
+
+#########################################################################################################
+
+################################### Follow-up questions #################################################
+
+#########################################################################################################
+
+
+<surveypage FollowUp1>
+/questions = [1 = FollowUp1]
+</surveypage>
+
+<surveypage FollowUp2>
+/questions = [1 = FollowUp2]
+</surveypage>
+
+<surveypage FollowUp3>
+/questions = [1 = FollowUp3]
+</surveypage>
+
+<textbox FollowUp1>
+/ caption = "Is there any reason why we should not use your data from any part of this study (i.e. you experienced technical problems, were interrupted, or weren't sure about the instructions)?"
+/ textboxsize = (60%, 30%)
+/ multiline = true
+/ required = false
+</textbox>
+
+<textbox FollowUp2>
+/ caption = "Please could you tell us a little bit about your experience completing the study (e.g., difficulty answering questions, clarity of instructions, etc)?"
+/ textboxsize = (60%, 30%)
+/ multiline = true
+/ required = false
+</textbox>
+
+<textbox FollowUp3>
+/ caption = "Is there anything else you'd like to tell us relating to the study?"
+/ textboxsize = (60%, 30%)
+/ multiline = true
+/ required = false
+</textbox>
+
+<survey FollowUp>
+/pages = [
+	1 = FollowUp1;
+	2 = FollowUp2;
+	3 = FollowUp3
+]
+/screencapture = false
+/fontstyle = ("Arial", 2.5%, false, true, false, false, 5, 1)
+/subcaptionfontstyle = ("Arial", 1.5%, false, false, false, false, 5, 1)
+/itemfontstyle = ("Arial", 3%, true, false, false, false, 5, 1)
+/responsefontstyle = ("Arial", 2%, false, false, false, false, 5, 1)
+/ txcolor = white
+/showpagenumbers = false
+/showquestionnumbers = false
+/itemspacing = 5%
+/navigationbuttonfontstyle = ("Arial", 3%, false, false, false, false, 5, 1)
+/navigationbuttonsize = (10%, 5%)
+/backbuttonposition = (0%, 90%)
+/nextbuttonposition = (90%, 90%)
+/finishlabel = "Finish"
+/ recorddata = true
+</survey>
+
+
+#########################################################################################################
+
+################################### Debrief #############################################################
+
+#########################################################################################################
+
+
+Begin by creating a debrief selection page where participants can choose either a gneral or student debrief:
+<trial DebriefSelection>
+/ stimulustimes = [1=clearscreen, Debrief, instruction, GeneralDebriefButton, StudentDebriefButton]
+/ inputdevice = mouse
+/ validresponse = ("GeneralDebriefButton", "StudentDebriefButton")
+/ correctresponse=("GeneralDebriefButton")
+/ recorddata = true
+/ branch = [
+	if (trial.DebriefSelection.response=="GeneralDebriefButton") trial.GeneralDebrieftitle
+]
+/ branch = [
+	if (trial.DebriefSelection.response=="StudentDebriefButton") trial.StudentDebrieftitle
+]
+</trial>
+
+<item Debrief>
+/ 1 = "Debrief"
+</item>
+
+<item instruction>
+/ 1 = "Please choose either a general or student debrief to continue; both outline the purpose of the study, 
+but the general debrief does so without using too much technical language, whereas the student debrief has details 
+about the study design and planned statistical analyses. You're welcome to pick which ever you like using the buttons 
+described, or have a look at both; just use the 'Back' button located on the following screen to navigate back to this page."
+</item>
+
+<text Debrief>
+/ items = Debrief
+/ vjustify = center
+/ hjustify = center
+/ position = (50%, 25%)
+/ fontstyle = ("Arial", 10%, true, false, true, false, 5, 0)
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<text instruction>
+/ items = instruction
+/ vjustify = center
+/ hjustify = center
+/ position = (50%, 45%)
+/ fontstyle = ("Arial", 2%, false, false, false, false, 5, 0)
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<button GeneralDebriefButton>
+/ caption = "General Debrief" // click to continue
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 1)
+/ size = (20%, 5%)
+/ position = (30%, 60%)
+</button>
+
+<button StudentDebriefButton>
+/ caption = "Student Debrief" // click to continue
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 1)
+/ size = (20%, 5%)
+/ position = (70%, 60%)
+</button>
+
+<block DebriefSelection>
+/ trials = [1 = DebriefSelection]
+</block>
+
+
+################################### General Debrief #####################################################
+
+
+<item GeneralDebrief1>
+/ 1 = "Thank you very much for taking time to participate in this study. 
+
+Pathological demand avoidance (PDA; characterised by obsessive avoidance of everyday demands, indulgence in fantasy/role-play, socially strategic behaviour and positive responses to spontaneity) is argued to represent a unique behavioural profile linked to autism (Newson, Le Marechal & David, 2003). Differences in the way autistic individuals estimate change in the environment (i.e., volatility) are thought to account, in part, for behaviours diagnostic of autism (Palmer, Lawson, & Hohwy, 2017). By overestimating how changeable the environment is, autistic individuals tend to over-learn about uncertainty (Reisli, Crosse, & Molholm, 2023). Previous research has identified intolerance of uncertainty and anxiety about the unknown as important mechanisms underpinning PDA (Stuart, Grahame, Honey, & Freeston, 2020). The main goal of this experiment is to examine how PDA is associated with the ability to learn about change in the environment. In this experiment, we systematically manipulated the reward contingencies of a shape selection task and recorded peoples’ responses."
+</item>
+
+<item GeneralDebrief2>
+/ 1 = "To reiterate, participation in this study is entirely voluntary and you are free to withdraw by quoting your user ID to the lead researcher (Matt Johnson; r02mj20@abdn.ac.uk). Data will be held anonymously meaning that it is impossible to trace back to you individually; your user ID can only be used to link you to your data if you contact the researcher and quotes your user ID. To ensure access to the data for the wider research community, the anonymous dataset maybe archived indefinitely in an online repository (e.g., the Open Science Framework, https://osf.io/) or sent to other researchers upon request for inspection. 
+
+If you require support at any time during or after this study, please see the National Autistic Society help page at www.autism.org.uk/whatwe-do/help-and-support or call the Samaritans on 116 123 or visit their website at www.samaritans.org. We are unable to offer feedback on questionnaire scores. It is also important to note that while scores on the questionnaires you have just completed can be indicative of autism/PDA, these questionnaires are designed to measure autistic-like traits and PDA behaviours in a general population; high questionnaire scores do not necessarily equate to an autism/PDA diagnosis. If you are interested in learning more about autism/PDA diagnosis, the National Autistic Society diagnosis page has lots of information about diagnostic materials and procedures: www.autism.org.uk/advice-and-guidance/topics/diagnosis. 
+
+"
+</item>
+
+<item GeneralDebrief3>
+/ 1 = "In case of questions, do not hesitate to contact the experimenter, Matt Johnson (r02mj20@abdn.ac.uk), or supervisors, Rama Chakravarthi (rama@abdn.ac.uk) and Rachel Swainson (r.swainson@abdn.ac.uk).  
+
+If you would like to read more about this research area, please see:
+
+Newson, E., Le Marechal, K., & David, C. (2003). Pathological demand avoidance syndrome: a necessary distinction within the pervasive developmental disorders. Archives of Disease in Childhood, 88(7), 595-600. http://dx.doi.org/10.1136/adc.88.7.595 
+Palmer, C. J., Lawson, R. P., & Hohwy, J. (2017). Bayesian approaches to autism: Towards volatility, action, and behavior. Psychological Bulletin, 143(5), 521.
+Reisli, S., Crosse, M., & Molholm, S. (2023). Atypical Tuning of Prediction Certainty in Autism: An EEG study on Anticipatory Processing During a Probabilistic Target Detection Task. Research Square. https://doi.org/10.21203/rs.3.rs-2688065/v1 
+Stuart, L., Grahame, V., Honey, E., & Freeston, M. (2020). Intolerance of uncertainty and anxiety as explanatory frameworks for extreme demand avoidance in children and adolescents. Child and Adolescent Mental Health, 25(2), 59-67.
+
+"
+</item>
+
+<text GeneralDebrief1>
+/ items = GeneralDebrief1
+/ vjustify = center
+/ hjustify = center
+/ size = (80%, 80%)
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 0)
+/ resetinterval = 0
+/ select = sequence
+/ vposition = 55%
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<text GeneralDebrief2>
+/ items = GeneralDebrief2
+/ vjustify = center
+/ hjustify = center
+/ size = (80%, 80%)
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 0)
+/ resetinterval = 0
+/ select = sequence
+/ vposition = 55%
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<text GeneralDebrief3>
+/ items = GeneralDebrief3
+/ vjustify = center
+/ hjustify = center
+/ size = (80%, 80%)
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 0)
+/ resetinterval = 0
+/ select = sequence
+/ vposition = 55%
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<item GeneralDebrieftitle>
+/ 1 = "General Debrief"
+</item>
+
+<text GeneralDebrieftitle>
+/ items = GeneralDebrieftitle
+/ vjustify = center
+/ hjustify = center
+/ position = (50%, 50%)
+/ fontstyle = ("Arial", 10%, true, false, true, false, 5, 0)
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<button Continue>
+/ caption = "Continue" // click to continue
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 1)
+/ size = (20%, 5%)
+/ position = (80%, 90%)
+</button>
+
+<button Back>
+/ caption = "Back" // click to go back
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 1)
+/ size = (20%, 5%)
+/ position = (20%, 90%)
+</button>
+
+<trial GeneralDebrieftitle>
+/ stimulustimes = [1=clearscreen, GeneralDebrieftitle, Continue, Back]
+/screencapture = false
+/ inputdevice = mouse
+/ validresponse = ("Continue", "Back")
+/ correctresponse= ("Continue")
+/ recorddata = true
+/ branch = [if (trial.GeneralDebrieftitle.error == 1) trial.DebriefSelection]
+/ branch = [if (trial.GeneralDebrieftitle.correct == 1) trial.GeneralDebrief1]
+</trial>
+
+<trial GeneralDebrief1>
+/ stimulustimes =[1 = clearscreen, GeneralDebrief1, Continue, Back] 
+/ inputdevice = mouse
+/ validresponse = ("Continue", "Back")
+/ correctresponse= ("Continue")
+/ recorddata = true
+/screencapture = false
+/ recorddata = true
+/ branch = [if (trial.GeneralDebrief1.error == 1) trial.GeneralDebrieftitle]
+/ branch = [if (trial.GeneralDebrief1.correct == 1) trial.GeneralDebrief2]
+</trial>
+
+<trial GeneralDebrief2>
+/ stimulustimes =[1 = clearscreen, GeneralDebrief2, Continue, Back] 
+/ inputdevice = mouse
+/ validresponse = ("Continue", "Back")
+/ correctresponse= ("Continue")
+/ recorddata = true
+/screencapture = false
+/ recorddata = true
+/ branch = [if (trial.GeneralDebrief2.error == 1) trial.GeneralDebrief1]
+/ branch = [if (trial.GeneralDebrief2.correct == 1) trial.GeneralDebrief3]
+</trial>
+
+<trial GeneralDebrief3>
+/ stimulustimes =[1 = clearscreen, GeneralDebrief3, Continue, Back] 
+/ inputdevice = mouse
+/ validresponse = ("Continue", "Back")
+/ correctresponse= ("Continue")
+/ recorddata = true
+/screencapture = false
+/ recorddata = true
+/ branch = [if (trial.GeneralDebrief3.error == 1) trial.GeneralDebrief2]
+/ branch = [if (trial.GeneralDebrief3.correct == 1) trial.Submission]
+</trial>
+
+
+################################### Student Debrief #####################################################
+
+
+<item StudentDebrief1>
+/ 1 = "Thank you very much for taking time to participate in this study. 
+
+Pathological demand avoidance (PDA; characterised by obsessive avoidance of everyday demands, indulgence in fantasy/role-play, socially strategic behaviour and positive responses to spontaneity) is argued to represent a unique behavioural profile linked to autism (Newson, Le Marechal & David, 2003). Differences in the way autistic individuals estimate change in the environment (i.e., volatility) are thought to account, in part, for behaviours diagnostic of autism (Palmer, Lawson, & Hohwy, 2017). By overestimating how changeable the environment is, autistic individuals tend to over-learn about uncertainty (Reisli, Crosse, & Molholm, 2023). Previous research has identified intolerance of uncertainty and anxiety about the unknown as important mechanisms underpinning PDA (Stuart, Grahame, Honey, & Freeston, 2020). The main goal of this experiment is to examine how PDA is associated with the ability to learn about change in the environment. In this experiment, we systematically manipulated the reward contingencies of a shape selection task and recorded peoples’ responses."
+</item>
+
+<item StudentDebrief2>
+/ 1 = "We will use multiple regression analysis to examine the relationships between anxious traits (measured by the Mood and Anxiety Symptom Questionnaire; MASQ), PDA behaviours (measured by the Extreme Demand Avoidance Questionnaire for Autism; EDA-QA), and task performance (peoples’ responses). The criterion variable will be task performance, while MASQ and EDA-QA scores will be predictor variables. The goal is to determine to what extent the predictor variables can predict task performance. It is hypothesised that each of the predictor variables will strongly predict task performance."
+</item>
+
+
+<item StudentDebrief3>
+/ 1 = "To reiterate, participation in this study is entirely voluntary and you are free to withdraw by quoting your user ID to the lead researcher (Matt Johnson; r02mj20@abdn.ac.uk). Data will be held anonymously meaning that it is impossible to trace back to you individually; your user ID can only be used to link you to your data if you contact the researcher and quotes your user ID. To ensure access to the data for the wider research community, the anonymous dataset maybe archived indefinitely in an online repository (e.g., the Open Science Framework, https://osf.io/) or sent to other researchers upon request for inspection. 
+
+If you require support at any time during or after this study, please see the University of Aberdeen student support services webpage at www.abdn.ac.uk/students/support/. Alternatively, please see the National Autistic Society help page at www.autism.org.uk/whatwe-do/help-and-support and/or call the Samaritans on 116 123 or visit their website at www.samaritans.org. We are unable to offer feedback on questionnaire scores. It is also important to note that while scores on the questionnaires you have just completed can be indicative of autism/PDA, these questionnaires are designed to measure autistic-like traits and PDA behaviours in a general population; high questionnaire scores do not necessarily equate to an autism/PDA diagnosis. If you are interested in learning more about autism/PDA diagnosis, the National Autistic Society diagnosis page has lots of information about diagnostic materials and procedures: www.autism.org.uk/advice-and-guidance/topics/diagnosis. 
+
+"
+</item>
+
+<item StudentDebrief4>
+/1 = "In case of questions, do not hesitate to contact the experimenter, Matt Johnson (r02mj20@abdn.ac.uk), or supervisors, Rama Chakravarthi (rama@abdn.ac.uk) and Rachel Swainson (r.swainson@abdn.ac.uk).  
+
+If you would like to read more about this research area, please see:
+
+Newson, E., Le Marechal, K., & David, C. (2003). Pathological demand avoidance syndrome: a necessary distinction within the pervasive developmental disorders. Archives of Disease in Childhood, 88(7), 595-600. http://dx.doi.org/10.1136/adc.88.7.595 
+Palmer, C. J., Lawson, R. P., & Hohwy, J. (2017). Bayesian approaches to autism: Towards volatility, action, and behavior. Psychological Bulletin, 143(5), 521.
+Reisli, S., Crosse, M., & Molholm, S. (2023). Atypical Tuning of Prediction Certainty in Autism: An EEG study on Anticipatory Processing During a Probabilistic Target Detection Task. Research Square. https://doi.org/10.21203/rs.3.rs-2688065/v1 
+Stuart, L., Grahame, V., Honey, E., & Freeston, M. (2020). Intolerance of uncertainty and anxiety as explanatory frameworks for extreme demand avoidance in children and adolescents. Child and Adolescent Mental Health, 25(2), 59-67.
+
+"
+</item>
+
+<text StudentDebrief1>
+/ items = StudentDebrief1
+/ vjustify = center
+/ hjustify = center
+/ size = (80%, 80%)
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 0)
+/ resetinterval = 0
+/ select = sequence
+/ vposition = 55%
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<text StudentDebrief2>
+/ items = StudentDebrief2
+/ vjustify = center
+/ hjustify = center
+/ size = (80%, 80%)
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 0)
+/ resetinterval = 0
+/ select = sequence
+/ vposition = 55%
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<text StudentDebrief3>
+/ items = StudentDebrief3
+/ vjustify = center
+/ hjustify = center
+/ size = (80%, 80%)
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 0)
+/ resetinterval = 0
+/ select = sequence
+/ vposition = 55%
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<text StudentDebrief4>
+/ items = StudentDebrief4
+/ vjustify = center
+/ hjustify = center
+/ size = (80%, 80%)
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 0)
+/ resetinterval = 0
+/ select = sequence
+/ vposition = 55%
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<item StudentDebrieftitle>
+/ 1 = "Student Debrief"
+</item>
+
+<text StudentDebrieftitle>
+/ items = StudentDebrieftitle
+/ vjustify = center
+/ hjustify = center
+/ position = (50%, 50%)
+/ fontstyle = ("Arial", 10%, true, false, true, false, 5, 0)
+/ txbgcolor = gray
+/ txcolor = white
+</text>
+
+<trial StudentDebrieftitle>
+/ stimulustimes = [1=clearscreen, StudentDebrieftitle, Continue, Back]
+/ recorddata = true
+/ inputdevice = mouse
+/ validresponse = ("Continue", "Back")
+/ correctresponse= ("Continue")
+/screencapture = false
+/ branch = [if (trial.StudentDebrieftitle.error == 1) trial.DebriefSelection]
+/ branch = [if (trial.StudentDebrieftitle.correct == 1) trial.StudentDebrief1]
+</trial>
+
+<trial StudentDebrief1>
+/ stimulustimes =[1 = clearscreen, StudentDebrief1, Continue, Back] 
+/ recorddata = true
+/ inputdevice = mouse
+/ validresponse = ("Continue", "Back")
+/ correctresponse= ("Continue")
+/screencapture = false
+/ branch = [if (trial.StudentDebrief1.error == 1) trial.StudentDebrieftitle]
+/ branch = [if (trial.StudentDebrief1.correct == 1) trial.StudentDebrief2]
+</trial>
+
+<trial StudentDebrief2>
+/ stimulustimes =[1 = clearscreen, StudentDebrief2 Continue, Back] 
+/ recorddata = true
+/ inputdevice = mouse
+/ validresponse = ("Continue", "Back")
+/ correctresponse= ("Continue")
+/screencapture = false
+/ branch = [if (trial.StudentDebrief2.error == 1) trial.StudentDebrief1]
+/ branch = [if (trial.StudentDebrief2.correct == 1) trial.StudentDebrief3]
+</trial>
+
+<trial StudentDebrief3>
+/ stimulustimes =[1 = clearscreen, StudentDebrief3, Continue, Back] 
+/ recorddata = true
+/ inputdevice = mouse
+/ validresponse = ("Continue", "Back")
+/ correctresponse= ("Continue")
+/screencapture = false
+/ branch = [if (trial.StudentDebrief3.error == 1) trial.StudentDebrief2]
+/ branch = [if (trial.StudentDebrief3.correct == 1) trial.StudentDebrief4]
+</trial>
+
+<trial StudentDebrief4>
+/ stimulustimes =[1 = clearscreen, StudentDebrief4, Continue, Back] 
+/ recorddata = true
+/ inputdevice = mouse
+/ validresponse = ("Continue", "Back")
+/ correctresponse= ("Continue")
+/screencapture = false
+/ branch = [if (trial.StudentDebrief4.error == 1) trial.StudentDebrief3]
+/ branch = [if (trial.StudentDebrief4.correct == 1) trial.Submission]
+</trial>
+
+Create a page to toggle back to debrief selection or submit data:
+<text instruction2>
+/ items = ("Thank you for your participation! If you would like to read the debrief again, or you would like to read the<br> other debrief, please press the 'Debrief Selection' button. Otherwise, please press the 'Submit' button<br> to submit your responses.<br><br> A gentle reminder that <b><u>if you would like us to delete your data for any reason, please send<br> your user ID (<%values.myvalue%>) via email to the lead researcher (Matt Johnson; r02mj20@abdn.ac.uk)<br> within 2 weeks of participating in this study. <br><br> Please make a note of your user ID now; without your user <br> ID you will not be able to withdraw your data after submission. <br><br><br><br></b></u>")
+/ position = (50%, 50%)
+/ fontstyle = ("Arial", 2%, false, false, false, false, 5, 0)
+/ txbgcolor = grey
+/ txcolor = white
+</text>
+
+<button SubmissionButton>
+/ caption = "Submit" // click to continue
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 1)
+/ size = (20%, 5%)
+/ position = (70%, 70%)
+</button>
+
+<button DebriefSelectionButton>
+/ caption = "Debrief Selection" // click to continue
+/ fontstyle = ("Arial", 2.5%, false, false, false, false, 5, 1)
+/ size = (20%, 5%)
+/ position = (30%, 70%)
+</button>
+
+<trial Submission>
+/ stimulustimes = [1=clearscreen, instruction2, DebriefSelectionButton, SubmissionButton]
+/ inputdevice = mouse
+/ validresponse = ("DebriefSelectionButton", "SubmissionButton")
+/ correctresponse=("SubmissionButton")
+/ recorddata = true
+/ ontrialend = [
+	if (trial.Submission.correct == 1)
+	values.submission = 1;
+]
+/ branch = [
+	if (trial.Submission.response == "DebriefSelectionButton") trial.DebriefSelection
+]
+
+</trial>
+
+<block Submission>
+/ trials = [1 = Submission]
+/ onblockend = [
+	if (trial.Submission.correct == 1)
+	values.submission = 1;
+]
+/ branch = [if (trial.Submission.error == 1) block.DebriefSelection]
+</block>
+
+
+**************************************************************************************************************
+**************************************************************************************************************
+	EXPERIMENT 
+**************************************************************************************************************
+**************************************************************************************************************
+
+---- STIMULI ----
+<text fixation>
+/ items = ("+")
+/ fontstyle = ("Arial", 10%, false, false, false, false, 5, 1)
+/ position = (50%, 50%)
+/ size = (8%, 10%)
+</text>
+
+<picture Triangle>
+/ items = ("Tri.png")
+/ vposition = (50%)
+/ size = (30%, 30%)
+</picture>
+
+<picture Circle>
+/ items = ("Cir.png")
+/ vposition = (50%)
+/ size = (30%, 30%)
+</picture>
+
+<picture selected>
+/ items = ("arrow.png")
+/ vposition = 25%
+/ size = (8%, 8%)
+</picture>
+
+<text plus_feedback>
+/items = ("+1")
+/ txcolor = limegreen
+/ fontstyle = ("Trebuchet MS", 10%, false, false, false, false, 5, 1)
+/ position = (50%, 50%)
+</text>
+
+<text minus_feedback>
+/items = ("-1")
+/ txcolor = tomato
+/ fontstyle = ("Trebuchet MS", 10%, false, false, false, false, 5, 1)
+/ position = (50%, 50%)
+</text>
+
+<text total>
+/ items = ("  Points: <%values.totalPoints%>  ")
+/ fontstyle = ("Arial", 5%, false, false, false, false, 5, 1)
+/ position = (50%, 85%)
+/ size = (80%, 8%)
+/ erase = false
+/ txcolor = white
+</text>
+
+<text NRfeedback>
+/ items = ("Out of time")
+/ fontstyle = ("Arial", 8%, true, false, false, false, 5, 1)
+/ position = (50%, 25%)
+/ size = (40%, 10%)
+/ txcolor = white
+</text>
+
+---- PROGRESS BAR ----
+<shape progressBarBackgroundCover>
+/ shape = rectangle   // Bar background (width: 100%)
+/ size = (50%, 0.5%)
+/ color = grey
+/ position = (0%, 92.5%)
+/erase = false
+</shape>
+
+<shape progressBarBackground>
+/ shape = rectangle   // Bar background (width: 100%)
+/ size = (100%, 0.5%)
+/ color = (172,167,158)
+/ position = (25%, 92.5%)
+/erase = false
+</shape>
+
+<shape progressBarFill>
+/ shape = rectangle 
+/ size = (expressions.barWidth, 0.5%)  // Dynamic width based on progress
+/ color = (96,98,99)    // Dark grey fill color for the progress bar
+/ position = (25%, 92.5%)
+/erase = false
+</shape>
+// 80% - correct; 20% - incorrect
+
+---- FEEDBACK ----
+<trial reward_feedback>
+/ ontrialbegin = [
+	values.feedback = 1;
+	values.totalPoints += 1;
+	values.blockCount += 1;
+	
+	picture.selected.skip = false;	
+	
+	if (values.responseSide == "NR"){
+		trial.reward_feedback.insertStimulusFrame(text.NRfeedback, 1);
+		picture.selected.skip = true;
+		values.totalPoints -= 2;
+		values.feedback = -1;
+		text.plus_feedback.skip = true;
+		trial.reward_feedback.insertStimulusFrame(text.minus_feedback, 1);}
+]
+/ stimulustimes = [1 = plus_feedback, selected, total, progressBarBackground, progressBarFill, progressBarBackgroundCover] 
+/ timeout = 1000
+/ ontrialend = [
+	trial.reward_feedback.resetStimulusFrames();
+	
+	if (values.phaseCount == 1) {
+		values.reversal = "Reversal";}
+]
+</trial>
+
+--
+		
+<trial punish_feedback>
+/ ontrialbegin = [
+	values.feedback = -1;
+	values.totalPoints -= 1;
+	values.blockCount += 1;
+		
+	picture.selected.skip = false;	
+	
+	if (values.responseSide == "NR"){
+		trial.punish_feedback.insertStimulusFrame(text.NRfeedback, 1);
+		picture.selected.skip = true;	}
+	
+]
+/ stimulustimes = [1 = minus_feedback, selected, total, progressBarBackground, progressBarFill, progressBarBackgroundCover] 
+/ timeout = 1000
+/ ontrialend = [
+	trial.punish_feedback.resetStimulusFrames();
+	
+	if (values.phaseCount == 1) {
+		values.reversal = "Reversal";}
+]	
+</trial>
+
+
+---- CONGRUENT ----
+<trial fixation_congruent_feedback_triangle>
+/ ontrialbegin = [
+	values.feedback = 0;
+	values.fixjit = round(rand(1000,2000));
+	values.correctChoice = "Triangle";
+	values.trialType = "Congruent";
+	values.trialnum += 1;
+	values.currentProgTrial += 1;
+	expressions.barWidth;
+	
+	picture.Triangle.hposition = list.hpositions.nextValue;
+	
+	if (picture.Triangle.hposition == "25pct"){
+		values.correctChoicePosition = "Left";
+		values.correctKey = parameters.leftKey;
+		values.incorrectKey = parameters.rightKey;
+	} else {
+		values.correctChoicePosition = "Right";
+		values.correctKey = parameters.rightKey;
+		values.incorrectKey = parameters.leftKey;
+	}
+	
+	picture.Circle.hposition = list.hpositions.nextValue;
+	
+		
+]
+/ stimulustimes = [0 = fixation, total, progressBarBackground, progressBarFill, progressBarBackgroundCover] 
+/ timeout = values.fixjit
+/ recorddata = false
+/ ontrialend = [
+	if (values.blockLabel == "Volatile") {
+		values.phaseCount += 1;
+	} else {
+		values.phaseCount = 0
+	}
+	
+	if (values.phaseCount == 21) {
+		values.phaseCount = 1;}
+		
+	if (values.reversal == "Reversal") {
+		values.reversal = "";}
+		
+	if (values.blockCount == 80) {
+		values.blockCount = 0;
+	}
+]
+/ branch = [trial.congruent_feedback_triangle]
+</trial>
+
+--
+
+<trial congruent_feedback_triangle> //need to make sure location changes
+/ ontrialbegin = [values.trialcount += 1;] 
+/ stimulustimes = [0 = Triangle, Circle, total, progressBarBackground, progressBarFill, progressBarBackgroundCover] //, total, progressBarBackground, progressBarFill, progressBarBackgroundCover
+/ validresponse = (parameters.leftKey, parameters.rightKey)
+/ correctresponse = (values.correctKey) //Triangle
+/ inputdevice = keyboard
+/ timeout = parameters.maxStimDuration
+/ recorddata = false
+/ ontrialend = [
+	if (trial.congruent_feedback_triangle.response == 18) {
+		values.responseSide = "Left";
+		picture.selected.hposition = 25%;
+	} else if (trial.congruent_feedback_triangle.response == 23){
+		values.responseSide = "Right";
+		picture.selected.hposition = 75%;
+	} else if (trial.congruent_feedback_triangle.response == 0){
+		values.responseSide = "NR";
+	}
+	
+	if (trial.congruent_feedback_triangle.correct == true) {
+		values.correctResponse = "Correct";
+	} else {
+		values.correctResponse = "Incorrect";
+	}
+	
+	values.RTs = trial.congruent_feedback_triangle.latency;
+]
+/ branch = [if(trial.congruent_feedback_triangle.correct == true) trial.reward_feedback]
+/ branch = [if(trial.congruent_feedback_triangle.correct == false) trial.punish_feedback]
+</trial>
+
+--
+
+<trial fixation_congruent_feedback_circle>
+/ ontrialbegin = [
+	values.feedback = 0;
+	values.fixjit = round(rand(1000,2000));
+	values.correctChoice = "Circle";
+	values.trialType = "Congruent";
+	values.trialnum += 1;
+	values.currentProgTrial += 1;
+	expressions.barWidth;
+	
+	picture.Circle.hposition = list.hpositions.nextValue;
+	
+	if (picture.Circle.hposition == "25pct"){
+		values.correctChoicePosition = "Left";
+		values.correctKey = parameters.leftKey;
+		values.incorrectKey = parameters.rightKey;
+	} else {
+		values.correctChoicePosition = "Right";
+		values.correctKey = parameters.rightKey;
+		values.incorrectKey = parameters.leftKey;
+	}
+	
+	picture.Triangle.hposition = list.hpositions.nextValue;
+	
+
+]
+/ stimulustimes = [0 = fixation, total, progressBarBackground, progressBarFill, progressBarBackgroundCover] 
+/ timeout = values.fixjit
+/ recorddata = false
+/ ontrialend = [
+	if (values.blockLabel == "Volatile") {
+		values.phaseCount += 1;
+	} else {
+		values.phaseCount = 0
+	}
+	
+	if (values.phaseCount == 21) {
+		values.phaseCount = 1;}
+		
+	if (values.reversal == "Reversal") {
+		values.reversal = "";}
+		
+	if (values.blockCount == 80) {
+		values.blockCount = 0;
+	}
+]
+/ branch = [trial.congruent_feedback_circle]
+</trial>
+
+--
+
+<trial congruent_feedback_circle> //need to make sure location changes
+/ ontrialbegin = [values.trialcount += 1;] 
+/ stimulustimes = [0 = Triangle, Circle, total, progressBarBackground, progressBarFill, progressBarBackgroundCover] //, total, progressBarBackground, progressBarFill, progressBarBackgroundCover
+/ validresponse = (parameters.leftKey, parameters.rightKey)
+/ correctresponse = (values.correctKey) //Circle
+/ inputdevice = keyboard
+/ timeout = parameters.maxStimDuration
+/ recorddata = false
+/ ontrialend = [
+
+	if (trial.congruent_feedback_circle.response == 18) {
+		values.responseSide = "Left";
+		picture.selected.hposition = 25%;
+	} else if (trial.congruent_feedback_circle.response == 23){
+		values.responseSide = "Right";
+		picture.selected.hposition = 75%;
+	} else if (trial.congruent_feedback_circle.response == 0){
+		values.responseSide = "NR";
+	}	
+
+	if (trial.congruent_feedback_circle.correct == true) {
+		values.correctResponse = "Correct";
+	} else {
+		values.correctResponse = "Incorrect";
+	}
+	
+	values.RTs = trial.congruent_feedback_circle.latency;
+]
+/ branch = [if(trial.congruent_feedback_circle.correct == false) trial.punish_feedback]
+/ branch = [if(trial.congruent_feedback_circle.correct == true) trial.reward_feedback]
+</trial>
+
+
+---- INCONGRUENT ----
+<trial fixation_incongruent_feedback_triangle>
+/ ontrialbegin = [
+	values.feedback = 0;
+	values.fixjit = round(rand(1000,2000));
+	values.correctChoice = "Triangle";
+	values.trialType = "Incongruent";
+	values.trialnum += 1;
+	values.currentProgTrial += 1;
+	expressions.barWidth;
+	
+	picture.Triangle.hposition = list.hpositions.nextValue;
+	
+	if (picture.Triangle.hposition == "25pct"){
+		values.correctChoicePosition = "Left";
+		values.correctKey = parameters.leftKey;
+		values.incorrectKey = parameters.rightKey;
+	} else {
+		values.correctChoicePosition = "Right";
+		values.correctKey = parameters.rightKey;
+		values.incorrectKey = parameters.leftKey;
+	}
+	
+	picture.Circle.hposition = list.hpositions.nextValue;
+	
+]
+/ stimulustimes = [0 = fixation, total, progressBarBackground, progressBarFill, progressBarBackgroundCover] 
+/ timeout = values.fixjit
+/ recorddata = false
+/ ontrialend = [
+	if (values.blockLabel == "Volatile") {
+		values.phaseCount += 1;
+	} else {
+		values.phaseCount = 0
+	}
+	
+	if (values.phaseCount == 21) {
+		values.phaseCount = 1;}
+		
+	if (values.reversal == "Reversal") {
+		values.reversal = "";}
+		
+	if (values.blockCount == 80) {
+		values.blockCount = 0;
+	}
+]
+/ branch = [trial.incongruent_feedback_triangle]
+</trial>
+
+<trial incongruent_feedback_triangle> //need to make sure location changes
+/ ontrialbegin = [values.trialcount += 1; ] 
+/ stimulustimes = [0 = Triangle, Circle, total, progressBarBackground, progressBarFill, progressBarBackgroundCover] //, total, progressBarBackground, progressBarFill, progressBarBackgroundCover
+/ validresponse = (parameters.leftKey, parameters.rightKey)
+/ correctresponse = (values.correctKey) //Triangle
+/ inputdevice = keyboard
+/ timeout = parameters.maxStimDuration
+/ recorddata = false
+/ ontrialend = [
+	
+	if (trial.incongruent_feedback_triangle.response == 18) {
+		values.responseSide = "Left";
+		picture.selected.hposition = 25%;
+	} else if (trial.incongruent_feedback_triangle.response == 23){
+		values.responseSide = "Right";
+		picture.selected.hposition = 75%;
+	} else if (trial.incongruent_feedback_triangle.response == 0){
+		values.responseSide = "NR";
+	}
+	
+	if (trial.incongruent_feedback_triangle.correct == true) {
+		values.correctResponse = "Correct";
+	} else {
+		values.correctResponse = "Incorrect";
+	}
+	
+	values.RTs = trial.incongruent_feedback_triangle.latency;
+]
+/ branch = [if(trial.incongruent_feedback_triangle.correct == true) trial.punish_feedback]
+/ branch = [if(trial.incongruent_feedback_triangle.correct == false) trial.reward_feedback]
+</trial>
+
+--
+
+<trial fixation_incongruent_feedback_circle>
+/ ontrialbegin = [
+	values.feedback = 0;
+	values.fixjit = round(rand(1000,2000));
+	values.correctChoice = "Circle";
+	values.trialType = "Incongruent";
+	values.trialnum += 1;
+	values.currentProgTrial += 1;
+	expressions.barWidth;
+	
+	picture.Circle.hposition = list.hpositions.nextValue;
+	
+	if (picture.Circle.hposition == "25pct"){
+		values.correctChoicePosition = "Left";
+		values.correctKey = parameters.leftKey;
+		values.incorrectKey = parameters.rightKey;
+	} else {
+		values.correctChoicePosition = "Right";
+		values.correctKey = parameters.rightKey;
+		values.incorrectKey = parameters.leftKey;
+	}
+	
+	picture.Triangle.hposition = list.hpositions.nextValue;
+		
+]
+/ stimulustimes = [0 = fixation,total, progressBarBackground, progressBarFill, progressBarBackgroundCover] 
+/ timeout = values.fixjit
+/ recorddata = false
+/ ontrialend = [
+	if (values.blockLabel == "Volatile") {
+		values.phaseCount += 1;
+	} else {
+		values.phaseCount = 0
+	}
+	
+	if (values.phaseCount == 21) {
+		values.phaseCount = 1;}
+	
+	if (values.reversal == "Reversal") {
+		values.reversal = "";}
+		
+	if (values.blockCount == 80) {
+		values.blockCount = 0;
+	}
+]
+/ branch = [trial.incongruent_feedback_circle]
+</trial>
+
+<trial incongruent_feedback_circle> //need to make sure location changes
+/ ontrialbegin = [values.trialcount += 1; ] 
+/ stimulustimes = [0 = Triangle, Circle, total, progressBarBackground, progressBarFill, progressBarBackgroundCover] //, total, progressBarBackground, progressBarFill, progressBarBackgroundCover
+/ validresponse = (parameters.leftKey, parameters.rightKey)
+/ correctresponse = (values.correctKey) //Circle
+/ inputdevice = keyboard
+/ timeout = parameters.maxStimDuration
+/ recorddata = false
+/ ontrialend = [
+	
+	if (trial.incongruent_feedback_circle.response == 18) {
+		values.responseSide = "Left";
+		picture.selected.hposition = 25%;
+	} else if (trial.incongruent_feedback_circle.response == 23){
+		values.responseSide = "Right";
+		picture.selected.hposition = 75%;
+	} else if (trial.incongruent_feedback_circle.response == 0){
+		values.responseSide = "NR";
+	}
+	
+	if (trial.incongruent_feedback_circle.correct == true) {
+		values.correctResponse = "Correct";
+	} else {
+		values.correctResponse = "Incorrect";
+	}
+	
+	values.RTs = trial.incongruent_feedback_circle.latency;
+]
+/ branch = [if(trial.incongruent_feedback_circle.correct == false) trial.reward_feedback]
+/ branch = [if(trial.incongruent_feedback_circle.correct == true) trial.punish_feedback]
+</trial>
+
+----
+
+---- CONTINGENCIES ----
+<block 80_20_cir>
+/trials = [ 1-5 = noreplace(fixation_congruent_feedback_circle,
+							fixation_congruent_feedback_circle,
+							fixation_congruent_feedback_circle,
+							fixation_congruent_feedback_circle,
+							fixation_incongruent_feedback_circle) ]
+</block>
+
+<block 80_20_tri>
+/trials = [ 1-5 = noreplace(fixation_congruent_feedback_triangle, 
+							fixation_congruent_feedback_triangle,
+							fixation_congruent_feedback_triangle,
+							fixation_congruent_feedback_triangle,
+							fixation_incongruent_feedback_triangle) ]
+</block>
+
+---
+
+---- INSTRUCTION BLOCKS ----
+<block BlockIntro>
+/ trials = [1 = intro; 2 = intro2;]
+</block>
+
+<block finish>
+/ trials = [1 = finish]
+</block>
+
+---
+
+---- BLOCKORDER ----
+<expt expt_start_triangle_rule_stable> 
+/ onblockbegin = [
+	values.ruleStart = "Triangle";
+	values.blockorder = "S/V";
+	values.blockLabel = "Stable";
+	if (values.trialnum >= 80){
+		values.blockLabel = "Volatile";
+	}
+]
+/subjects = (1 of 4)
+/groupassignment = random
+/ blocks = [
+1 = Consent;
+2 = Demo;
+3 = ineligible;
+4 = block.BlockIntro;
+5-20 = 80_20_tri; 
+21-24 = 80_20_cir; 
+25-28 = 80_20_tri; 
+29-32 = 80_20_cir;
+33-36 = 80_20_tri; 
+37 = MASQ_EDAQ;
+38 = FollowUp; 
+39 = DebriefSelection;
+40 = finish;]
+/ onexptend = [
+	if (values.submission == 1 && values.consent == 1 && values.ProlificID == 1 && values.trialcount == 160) // Checked and working as intended	as intended
+	defaults.finishpage = "https://app.prolific.com/submissions/complete?cc=C53U4T4X";
+]
+</expt>
+
+<expt expt_start_circle_rule_stable> 
+/ onblockbegin = [
+	values.ruleStart = "Circle";
+	values.blockorder = "S/V";
+	values.blockLabel = "Stable";
+	if (values.trialnum >= 80){
+		values.blockLabel = "Volatile";
+	}
+]
+/subjects = (2 of 4)
+/groupassignment = random
+/ blocks = [
+1 = Consent;
+2 = Demo;
+3 = ineligible;
+4 = block.BlockIntro;
+5-20 = 80_20_cir; 
+21-24 = 80_20_tri; 
+25-28 = 80_20_cir; 
+29-32 = 80_20_tri;
+33-36 = 80_20_cir; 
+37 = MASQ_EDAQ;
+38 = FollowUp; 
+39 = DebriefSelection;
+40 = finish;]
+/ onexptend = [
+	if (values.submission == 1 && values.consent == 1 && values.ProlificID == 1 && values.trialcount == 160) // Checked and working as intended	as intended
+	defaults.finishpage = "https://app.prolific.com/submissions/complete?cc=C53U4T4X";
+]
+</expt>
+
+<expt expt_start_trianlge_rule_volatile> 
+/ onblockbegin = [
+	values.ruleStart = "Triangle";
+	values.blockorder = "V/S";
+	values.blockLabel = "Volatile";
+	if (values.trialnum >= 80){
+		values.blockLabel = "Stable";
+	}
+]
+/subjects = (3 of 4)
+/groupassignment = random
+/ blocks = [
+1 = Consent;
+2 = Demo;
+3 = ineligible;
+4 = block.BlockIntro;
+5-8 = 80_20_tri; 
+9-12 = 80_20_cir; 
+13-16 = 80_20_tri; 
+17-20 = 80_20_cir;
+21-36 = 80_20_tri; 
+37 = MASQ_EDAQ;
+38 = FollowUp; 
+39 = DebriefSelection;
+40 = finish;]
+/ onexptend = [
+	if (values.submission == 1 && values.consent == 1 && values.ProlificID == 1 && values.trialcount == 160) // Checked and working as intended	as intended
+	defaults.finishpage = "https://app.prolific.com/submissions/complete?cc=C53U4T4X";
+]
+</expt>
+
+<expt expt_start_circle_rule_volatile> 
+/ onblockbegin = [
+	values.ruleStart = "Circle";
+	values.blockorder = "V/S";
+	values.blockLabel = "Volatile";
+	if (values.trialnum >= 80){
+		values.blockLabel = "Stable";
+	}
+]
+/subjects = (4 of 4)
+/groupassignment = random
+/ blocks = [
+1 = Consent;
+2 = Demo;
+3 = ineligible;
+4 = block.BlockIntro;
+5-8 = 80_20_cir; 
+9-12 = 80_20_tri; 
+13-16 = 80_20_cir; 
+17-20 = 80_20_tri;
+21-36 = 80_20_cir; 
+37 = MASQ_EDAQ;
+38 = FollowUp; 
+39 = DebriefSelection;
+40 = finish;]
+/ onexptend = [
+	if (values.submission == 1 && values.consent == 1 && values.ProlificID == 1 && values.trialcount == 160) // Checked and working as intended	as intended
+	defaults.finishpage = "https://app.prolific.com/submissions/complete?cc=C53U4T4X";
+]
+</expt>
+
+**************************************************************************************************************
+												End of File
+**************************************************************************************************************
