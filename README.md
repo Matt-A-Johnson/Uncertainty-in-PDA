@@ -1,0 +1,1 @@
+This folder contains data collected for the doctoral thesis Exploring ‘Pathological’ Demand Avoidance (PDA): A Mixed-Methods Investigation of Sensory Processing, Uncertainty, and Anxiety in PDA, along with the scripts used for data collection and analysis.
