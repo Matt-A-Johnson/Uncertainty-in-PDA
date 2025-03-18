@@ -1,0 +1,2066 @@
+---
+title: "Post hoc analysis"
+format: html
+editor: visual
+---
+
+# Package installation
+
+```{r}
+#Install packages and libraries:
+packages <- c("groundhog", "tidyr", "INLA", "tidyverse", "plotrix", 
+              "rstatix", "gridExtra", "tidybayes", "modelsummary", 
+              "rstatix", "brms", "coda", "mvtnorm", "devtools", "dagitty", "StanHeaders", 
+              "rstan", "V8", "bayesplot", "correlation", "patchwork")
+
+#Install packages if not already installed:
+packages_to_install <- packages[!packages %in% installed.packages()]
+if(length(packages_to_install)) install.packages(packages_to_install, dependencies = TRUE)
+
+#If not already installed, install rethinking() separately:
+#install.packages("rethinking", 
+#                 repos=c(cran="https://cloud.r-project.org",
+#                         rethinking="http://xcelab.net/R"))
+
+#Remove and reinstall loo if experiencing issues with add_criterion():
+remove.packages("loo")
+remotes::install_github("stan-dev/loo")
+
+#Rstan might need a bit of extra attention. If it doesn't install with the above code, remove any existing RStan via:
+remove.packages("rstan")
+if (file.exists(".RData")) file.remove(".RData")
+
+#Set up compiler flags:
+dotR <- file.path(Sys.getenv("HOME"), ".R")
+if (!file.exists(dotR)) dir.create(dotR)
+M <- file.path(dotR, "Makevars")
+if (!file.exists(M)) file.create(M)
+cat("\nCXX17FLAGS=-O3 -march=native -mtune=native -fPIC",
+    "CXX17=g++", # or clang++ but you may need a version postfix
+    file = M, sep = "\n", append = TRUE)
+
+#This code is for the development version of rstan- I've been told that this might function better than the up-to-date version:
+install.packages("StanHeaders", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+install.packages("rstan", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+
+#To verify your installation, you can run the RStan example/test model:
+example(stan_model, package = "rstan", run.dontrun = TRUE)
+```
+
+```{r}
+#Once installed, load libraries using groundhog():
+library(groundhog)
+
+#Specify packages:
+packages <- c("groundhog", "tidyr", "INLA", "tidyverse", "plotrix", 
+              "rstatix", "gridExtra", "tidybayes", "modelsummary", 
+              "rstatix", "brms", "coda", "mvtnorm", "devtools", "dagitty", "StanHeaders", 
+              "rstan", "V8", "bayesplot", "correlation", "patchwork")
+
+#Load packages:
+groundhog.library(packages, "2024-06-28", tolerate.R.version='4.4.0')
+```
+
+```{r}
+#If that doesn't work, load packages manually:
+library(rstan)
+library(cmdstanr)
+library(devtools)
+library(rethinking) #Add download above
+library(V8)
+library(brms)
+library(tidyverse) 
+library(plotrix)
+library(gridExtra)
+library(tidybayes)
+library(modelsummary)
+library(bayesplot)
+library(correlation)
+library(patchwork)
+```
+
+# Preamble
+
+## Goals of analysis
+
+In a two-choice PRL task, the appropriate strategy is to learn which option maximises reward most of the time and choose that option for every trial (or until the rule changes; Herrnstein, 1961; Shanks et al., 2002). Thus, participant choices that corresponded to the current rule (e.g., choosing triangle when triangle was rewarded 80% of the time) were coded as congruent. Conversely, participant choices that did not correspond to the current rule (e.g., choosing triangle when circle was rewarded 80% of the time) were coded as incongruent. Choice congruence was calculated as the percentage of trials in which participants chose the currently most rewarded option (i.e., proportion of congruent responses) for every ten trials. This was to capture how task performance by each group changed throughout the experiment. In the last trial group – trial group 8 – in the stable condition, both groups demonstrated congruence above chance level (i.e., 50%). This suggests that probabilistic contingencies were learnt by both groups.
+
+However, neurotypical and autistic groups differed in their choice congruence - the neurotypical group had higher choice congruence after the 5th trial block in the stable condition compared to the autistic group. We demarcated a PDA group as anyone (NT of ASC) with an EDA-QA score above the 67th percentile. Plotting choice congruence again by group (inc. NT, ASC, and PDA), we see that the PDA group appeared to perform differently in the stable condition compared to the NT and ASC groups. Specifically, the PDA group seemed to have a lower average choice congruence. This might have something to do with differences in task approach - for example, groups might have employed different strategies to complete the task.
+
+In an attempt to better understand group behaviour, we chose to investigate lose-shift behaviours calculated for the stable condition only. It was reasoned that lose-shift strategies would likely result in approx. 80% choice congruence. The ASC group seemingly ended the stable block with approx. 80% choice congruence AND has previously be associated with more lose-shift behaviours compared to NT. Thus, we wanted to see if lose-shift behaviours could explain any potential group difference in choice congruence in the stable condition.
+
+This post hoc analysis is purposed to 1) investigate any potential difference in choice congruence between group in the stable condition, and 2) investigate the relationship between lose-shift (calculated for the stable condition only) and autism, anxiety, and PDA.
+
+# Data preparation
+
+## Visualisation
+
+Load in data:
+
+```{r}
+#Load behavioural data, selecting relevant columns and summarize to retain a single row per participant:
+B_df <- read.csv("LM_Data.csv") %>%
+  group_by(subject) %>%
+  summarise(
+    loseShift = mean(lose_shift_proportion_S, na.rm = TRUE),
+    neurotype = factor(first(neurotype)),  
+    MASQ = mean(MASQ, na.rm = TRUE),
+    EDAQ = mean(EDAQ, na.rm = TRUE),
+    blockorder = factor(first(blockorder)),
+    .groups = 'drop'
+  )
+
+#Load in learning rate data, selecting relevant columns and calculating relative log learning rates (RLLRs):
+LR_df <- read.csv("results_RL_summary_01_20.csv") %>%   #If interested, run the analysis using the complete choice data (i.e., inc. trials 1-80), read.csv("results_RL_summary.csv"), or the first 20 trials, read.csv("results_RL_summary_01_20.csv")
+  select(subject, stableAlpha, stableBeta, volatileAlpha, volatileBeta) %>%
+  mutate(RLLR = log(volatileAlpha) - log(stableAlpha))
+
+#Merge the data frames by subject:
+data <- B_df %>%
+  inner_join(LR_df, by = "subject")
+
+#Write data to csv for modelling (change name of file as appropriate):
+write.table(data, file="Data.csv",sep=",",row.names=F)
+```
+
+#### Choice congruence
+
+Re-calculate choice congruence for each participant as a percentage of congruent responses for every ten trials (sequentially):
+
+```{r}
+#Load data:
+df_R <- read.csv("df_R.csv") %>%
+  mutate(b_correct = ifelse(correctResponse == "Correct", 1, ifelse(correctResponse == "Incorrect", 0, 0)))
+
+#Calculate congruence per ten trials for each participant in stable condition:
+congruence_STABLE <- df_R %>%
+  filter(blockLabel == "Stable") %>%
+  group_by(subject) %>%
+  mutate(trial_group = (blockCount - 1) %/% 10 + 1) %>%
+  group_by(subject, trial_group) %>%
+  summarise(
+    neurotype = factor(first(diagnosis)),
+    group = factor(first(group)),
+    blockorder = first(blockorder), 
+    congruence = mean(b_correct) * 100,
+    total_correct = sum(b_correct),
+    total_trials = n(),
+    se = sd(b_correct) / sqrt(n()),
+  ) %>%
+  ungroup()
+
+write.csv(congruence_STABLE, "congruence_STABLE.csv")
+
+#Calculate congruence per ten trials for each participant in stable condition:
+congruence_VOLATILE <- df_R %>%
+  filter(blockLabel == "Volatile") %>%
+  group_by(subject) %>%
+  mutate(trial_group = (blockCount - 1) %/% 10 + 1) %>%
+  group_by(subject, trial_group) %>%
+  summarise(
+    neurotype = factor(first(diagnosis)),
+    group = factor(first(group)),
+    blockorder = first(blockorder), 
+    congruence = mean(b_correct) * 100,
+    total_correct = sum(b_correct),
+    total_trials = n(),
+    se = sd(b_correct) / sqrt(n()),
+  ) %>%
+  ungroup()
+
+write.csv(congruence_VOLATILE, "congruence_VOLATILE.csv")
+```
+
+Calculate average choice congruence:
+
+```{r}
+#Calculate the average congruence for each condition (i.e., the average percentage of congruence responses for each ten trial block):
+avg_congruence_STABLE_n <- congruence_STABLE %>%
+  group_by(trial_group, neurotype) %>%
+  summarise(avg_congruence = mean(congruence),
+            sd_congruence = sd(congruence)) %>%
+  ungroup()
+
+#And for volatile condtion:
+avg_congruence_VOLATILE_n <- congruence_VOLATILE %>%
+  group_by(trial_group, neurotype) %>%
+  summarise(avg_congruence = mean(congruence),
+            sd_congruence = sd(congruence)) %>%
+  ungroup()
+
+# Calculate average congruence by neurotype and blockOrder for the Stable condition
+avg_congruence_blockOrder_STABLE_n <- congruence_STABLE %>%
+  group_by(neurotype, blockorder, trial_group) %>%
+  summarise(
+    avg_congruence = mean(congruence),  # Average congruence across participants in each trial group
+    se = sd(congruence) / sqrt(n()),  # Standard error across participants (mean congruence per trial group)
+    .groups = 'drop'
+  )
+
+write.csv(avg_congruence_blockOrder_STABLE_n,"avg_congruence_blockOrder_STABLE_n.csv")
+
+# Calculate average congruence by neurotype and blockOrder for the Volatile condition
+avg_congruence_blockOrder_VOLATILE_n <- congruence_VOLATILE %>%
+  group_by(neurotype, blockorder, trial_group) %>%
+  summarise(
+    avg_congruence = mean(congruence),  # Average congruence across participants in each trial group
+    se = sd(congruence) / sqrt(n()),  # Standard error across participants (mean congruence per trial group)
+    .groups = 'drop'
+  )
+
+write.csv(avg_congruence_blockOrder_VOLATILE_n, "avg_congruence_blockOrder_VOLATILE_n.csv") 
+```
+
+Plot average choice congruence by neurotype:
+
+```{r}
+#Plot the average congruence for the stable condition:
+ggplot(data = avg_congruence_blockOrder_STABLE_n %>% filter(!is.na(neurotype)), 
+       aes(x = factor(trial_group), y = as.numeric(avg_congruence), group = neurotype, color = as.factor(neurotype))) +
+  geom_line( size = 1) +  
+  geom_point( size = 2) +
+  geom_jitter(data = congruence_STABLE, 
+       aes(x = factor(trial_group), y = as.numeric(congruence), group = interaction(neurotype, subject), color = as.factor(neurotype)), width = 0.1, alpha = 0.2) +
+  geom_errorbar(data = avg_congruence_blockOrder_STABLE_n, aes(x = factor(trial_group), ymin = avg_congruence - se, ymax = avg_congruence + se), width = 0.5, size = 1) +
+  ylim(0,100) +
+  labs(x = "Trial group", y = "Average Congruence", color = "Neurotype") +
+  #scale_x_discrete(labels = c("stableAlpha" = "Stable", "volatileAlpha" = "Volatile")) +
+  #scale_color_viridis_d() +  # Automatically assigns distinct colors
+  ggtitle("Average Congruence For The Stable Condition by Block Order 
+and Neurotype") +
+  #ylim(0,1) +
+  theme_minimal() +
+  scale_color_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), name = "Neurotype", breaks = c("NT", "ASC")) +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.position = "right",
+    legend.spacing.y = unit(0.1, "cm"),  
+    legend.margin = margin(0, 0, 0, 0),
+    legend.key.height = unit(0.1, "cm"),  
+    legend.text = element_text(size = 10),  
+    strip.text = element_text(size = 12)  # Keep facet labels for blockorder
+  ) +
+  guides(color = guide_legend(ncol = 1)) +
+  facet_grid(. ~ factor(blockorder))
+ggsave( 'congruence_Sta_se.png', plot = last_plot(), dpi = 300)
+
+#Plot the average congruence for the volatile condition:
+ggplot(data = avg_congruence_blockOrder_VOLATILE_n, 
+       aes(x = factor(trial_group), y = as.numeric(avg_congruence), group = neurotype, color = as.factor(neurotype))) +
+  geom_line( size = 1) +  
+  geom_point( size = 2 ) + 
+  geom_jitter(data = congruence_VOLATILE, 
+       aes(x = factor(trial_group), y = as.numeric(congruence), group = interaction(neurotype, subject), color = as.factor(neurotype)), width = 0.1, alpha = 0.2) +
+  geom_errorbar(data = avg_congruence_blockOrder_VOLATILE_n, aes(x = factor(trial_group), ymin = avg_congruence - se, ymax = avg_congruence + se), width = 0.5, size = 1) +
+  ylim(0,100) +
+  facet_grid(. ~ factor(blockorder)) +
+  labs(x = "Trial group", y = "Average Congruence", color = "Neurotype") +
+  #scale_x_discrete(labels = c("stableAlpha" = "Stable", "volatileAlpha" = "Volatile")) +
+  #scale_color_viridis_d() +  # Automatically assigns distinct colors
+  ggtitle("Average Congruence For The Volatile Condition by Block Order 
+and Neurotype") +
+  #ylim(0,1) +
+  scale_color_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), name = "Neurotype", breaks = c("NT", "ASC")) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.position = "right",
+    legend.spacing.y = unit(0.1, "cm"),  
+    legend.margin = margin(0, 0, 0, 0),
+    legend.key.height = unit(0.1, "cm"),  
+    legend.text = element_text(size = 10),  
+    strip.text = element_text(size = 12)  # Keep facet labels for blockorder
+  ) +
+  guides(color = guide_legend(ncol = 1)) +
+  facet_grid(. ~ factor(blockorder))
+ggsave( 'congruence_Vol_se.png', plot = last_plot(), dpi = 300)
+```
+
+Again, neurotypical and autistic groups differ in their choice congruence - the neurotypical group had higher choice congruence after the 5th trial block in the stable condition compared to the autistic group.
+
+We demarcated a PDA group as anyone (NT or ASC) with an EDA-QA score above the 67th percentile. Calculate average choice congruence by group (i.e., inc. PDA):
+
+```{r}
+#Load data:
+congruence_STABLE <- read.csv("congruence_STABLE.csv")
+congruence_VOLATILE <- read.csv("congruence_VOLATILE.csv")
+
+#Also calculate the average congruence for each condition (i.e., the average percentage of correct responses for each ten trial block):
+avg_congruence_STABLE_g <- congruence_STABLE %>%
+  group_by(trial_group, group) %>%
+  summarise(avg_congruence = mean(congruence),
+            sd_congruence = sd(congruence)) %>%
+  ungroup()
+
+#And for volatile condtion:
+avg_congruence_VOLATILE_g <- congruence_VOLATILE %>%
+  group_by(trial_group, group) %>%
+  summarise(avg_congruence = mean(congruence),
+            sd_congruence = sd(congruence)) %>%
+  ungroup()
+
+# Calculate average congruence by group and blockOrder for the stable condition
+avg_congruence_blockOrder_STABLE_g <- congruence_STABLE %>%
+  group_by(group, blockorder, trial_group) %>%
+  summarise(
+    avg_congruence = mean(congruence),  # Average congruence across participants in each trial group
+    se = sd(congruence) / sqrt(n()),  # Standard error across participants (mean congruence per trial group)
+    .groups = 'drop'
+  )
+
+write.csv(avg_congruence_blockOrder_STABLE_g,"avg_congruence_blockOrder_STABLE_g.csv")
+
+# Calculate average congruence by group and blockOrder for the Volatile condition
+avg_congruence_blockOrder_VOLATILE_g <- congruence_VOLATILE %>%
+  group_by(group, blockorder, trial_group) %>%
+  summarise(
+    avg_congruence = mean(congruence),  # Average congruence across participants in each trial group
+    se = sd(congruence) / sqrt(n()),  # Standard error across participants (mean congruence per trial group)
+    .groups = 'drop'
+  )
+
+write.csv(avg_congruence_blockOrder_VOLATILE_g, "congruence_by_blockOrder_VOLATILE_g.csv") 
+```
+
+Plot average choice congruence by group:
+
+```{r}
+#plot the average congruence for the stable condition:
+ggplot(data = avg_congruence_blockOrder_STABLE_g, 
+       aes(x = factor(trial_group), y = as.numeric(avg_congruence), group = group, color = as.factor(group))) +
+  geom_line(size = 1) +  
+  geom_point(size = 2) +
+  geom_jitter(data = congruence_STABLE,
+       aes(x = factor(trial_group), y = as.numeric(congruence), group = interaction(group, subject), color = as.factor(group)), width = 0.1, alpha = 0.2) +
+  scale_y_continuous(limits = c(0, 100)) +  # Set correct y-axis limits
+  geom_errorbar(data = avg_congruence_blockOrder_STABLE_g, aes(x = factor(trial_group), ymin = avg_congruence - se, ymax = avg_congruence + se), width = 0.2, size = 1) +
+  facet_grid(. ~ factor(blockorder)) +
+  labs(x = "Trial group", y = "Average Congruence", color = "Diagnosis") +
+  #scale_x_discrete(labels = c("stableAlpha" = "Stable", "volatileAlpha" = "Volatile")) +
+  scale_color_viridis_d() +  # Automatically assigns distinct colors
+  ggtitle("Average Congruence For The Stable Condition by Block Order 
+and Group") +
+  #ylim(0,1) +
+  theme_minimal() +
+  scale_color_manual(values = c("ASC" = "#cc99ff","NT" = "#66cccc","PDA" = "#336666"), name = "Group", breaks = c("NT", "ASC", "PDA")) +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.position = "right",
+    legend.spacing.y = unit(0.1, "cm"),  
+    legend.margin = margin(0, 0, 0, 0),
+    legend.key.height = unit(0.1, "cm"),  
+    legend.text = element_text(size = 10),  
+    strip.text = element_text(size = 12)  # Keep facet labels for blockorder
+  ) +
+  guides(color = guide_legend(ncol = 1)) +
+  facet_grid(. ~ factor(blockorder))
+ggsave( 'congruence_Sta_PDA_se.png', plot = last_plot(), dpi = 300)
+
+#Plot the average congruence for the volatile condition:
+ggplot(data = avg_congruence_blockOrder_VOLATILE_g, 
+       aes(x = factor(trial_group), y = as.numeric(avg_congruence), group = group, color = as.factor(group))) +
+  geom_line(size = 1) +  
+  geom_point(size = 2) +  
+  geom_jitter(data = congruence_STABLE, 
+       aes(x = factor(trial_group), y = as.numeric(congruence), group = interaction(group, subject), color = as.factor(group)), width = 0.1, alpha = 0.2) +
+  scale_y_continuous(limits = c(0, 100)) +  # Set correct y-axis limits
+  geom_errorbar(data = avg_congruence_blockOrder_VOLATILE_g, aes(x = factor(trial_group), ymin = avg_congruence - se, ymax = avg_congruence + se), width = 0.2, size = 1) +
+  facet_grid(. ~ factor(blockorder)) +
+  labs(x = "Trial group", y = "Average Congruence", color = "Diagnosis") +
+  #scale_x_discrete(labels = c("stableAlpha" = "Stable", "volatileAlpha" = "Volatile")) +
+  #scale_color_viridis_d() +  # Automatically assigns distinct colors
+  ggtitle("Average Congruence For The Volatile Condition by Block Order 
+and Group") +
+  #ylim(0,1) +
+  scale_color_manual(values = c("ASC" = "#cc99ff","NT" = "#66cccc","PDA" = "#336666"), name = "Group", breaks = c("NT", "ASC", "PDA")) +  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.position = "right",
+    legend.spacing.y = unit(0.1, "cm"),  
+    legend.margin = margin(0, 0, 0, 0),
+    legend.key.height = unit(0.1, "cm"),  
+    legend.text = element_text(size = 10),  
+    strip.text = element_text(size = 12)  # Keep facet labels for blockorder
+  ) +
+  guides(color = guide_legend(ncol = 1)) +
+  facet_grid(. ~ factor(blockorder))
+ggsave( 'congruence_Vol_PDA_se.png', plot = last_plot(), dpi = 300)
+
+#Create a table to display congruence values for each group
+congruence_STABLE %>%
+  group_by(group, trial_group) %>%
+  summarise(
+    avg_accuracy = mean(congruence),  # Average accuracy across participants in each trial group
+    se = sd(congruence) / sqrt(n()),  # Standard error across participants (mean congruence per trial group)
+    Range = range(congruence),
+    .groups = 'drop'
+  )
+
+congruence_VOLATILE %>%
+  group_by(group, trial_group) %>%
+  summarise(
+    avg_accuracy = mean(congruence),  # Average accuracy across participants in each trial group
+    se = sd(congruence) / sqrt(n()),  # Standard error across participants (mean congruence per trial group)
+    Range = range(congruence),
+    .groups = 'drop'
+  )
+```
+
+Plotting choice congruence again by group (inc. NT, ASC, and PDA), we see that the PDA group appears to perform differently in the stable condition compared to the NT and ASC groups. Specifically, the PDA group seemed to have a lower average choice congruence.
+
+#### Lose-shift behaviour
+
+We can also visualise the relationship between lose-shift behaviours and MASQ and EDA-QA scores for the stable condition only:
+
+```{r}
+#Read in saved data file:
+data <- read.csv("Data.csv")
+
+#Plotting lose-shift by EDA-QA and MASQ scores:
+
+#Plot total scores (without neurotype):
+ggplot(data = data, aes(x = EDAQ, y = loseShift, color = "#336666")) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, aes(y = loseShift), fill = "#336666") +
+  labs(x = "EDA-QA scores", y = "Proportion of Lose-Shift") +
+  ggtitle("Relationship between Lose-Shift and EDA-QA scores") +
+  theme_minimal() +
+  scale_color_identity()
+
+ggplot(data = data, aes(x = MASQ, y = loseShift, color = "#336666")) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, aes(y = loseShift), fill = "#336666") +
+  labs(x = "MASQ scores", y = "Proportion of Lose-Shift") +
+  ggtitle("Relationship between Lose-Shift and MASQ scores") +
+  theme_minimal() +
+  scale_color_identity()
+
+#Plot by neurotype:
+ggplot(data = data, aes(x = EDAQ, y = loseShift, color = neurotype)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, aes(y = loseShift, fill = neurotype),  show.legend = FALSE) +
+  labs(x = "EDA-QA scores", y = "Proportion of Lose-Shift", color = "Neurotype") +
+  ggtitle("Relationship between Lose-Shift and EDA-QA scores") +
+  scale_color_manual(values = c("NT" = "#66cccc", "ASC" = "#cc99ff"), breaks = c("NT", "ASC")) +
+  scale_fill_manual(values = c("NT" = "#66cccc", "ASC" = "#cc99ff"), breaks = c("NT", "ASC")) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16)
+  )
+
+ggplot(data = data, aes(x = MASQ, y = loseShift, color = neurotype)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, aes(y = loseShift, fill = neurotype), show.legend = FALSE) +
+  labs(x = "MASQ scores", y = "Proportion of Lose-Shift", color = "Neurotype") +
+  ggtitle("Relationship between Lose-Shift and MASQ scores") +
+  scale_color_manual(values = c("NT" = "#66cccc", "ASC" = "#cc99ff"), breaks = c("NT", "ASC")) +
+  scale_fill_manual(values = c("NT" = "#66cccc", "ASC" = "#cc99ff"), breaks = c("NT", "ASC")) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16)
+  )
+```
+
+Visual inspection of lose-shift behaviours in the stable condition only suggest no relationship with anxiety nor PDA - this is the case for both NT and ASC group.
+
+# Model checking
+
+For those unfamiliar with brms() (specifically with brms() syntax), chapter 12 of the following webpage provides some useful guidance on how to specify a brms() model: [Chapter 12 Bayesian estimation with brms \| An R companion to Statistics: data analysis and modelling (mspeekenbrink.github.io)](https://mspeekenbrink.github.io/sdam-r-companion/bayesian-estimation-with-brms.html)
+
+## Choice congruence
+
+To better understand the relationship between group and potential differences in task approach, we model choice congruence predicted by group and trial group for the stable condition:
+
+$$
+choiceCongruence_i ∼ Normal( μ_i, σ ) \\
+μ_i = α_{neurotype/group, trialGroup​}  \\
+α_{neurotype/group, trialGroup​} ∼ ​Normal(0, 1) \\
+σ ∼ Exponential(1)
+$$
+
+Soon we will perform prior predictive checks and sensitivity analysis to justify our choice of priors, but for now, we will use uninformative flat priors to check the simulation is working- because we simulate standardised variables we will assume $Normal(0,1)$.
+
+Now fit the models to the data- again, in lieu of justified priors, we will assume $Normal(0,1)$:
+
+```{r}
+#Read in saved data file:
+data <- read.csv("congruence_STABLE.csv")
+
+#Prepare and standardise variables:
+std_data_n <- data %>%
+  mutate(
+    neurotype = factor(neurotype),
+    trialGroup = factor(trial_group),
+    congruence = standardize(congruence)
+  ) %>%
+  select(neurotype, trialGroup, congruence, blockorder) %>%
+  distinct()
+
+#Fit the model where choice congruence is predicted by neurotype by trial group:
+modCC <- brm(
+  congruence ~ neurotype:trialGroup,
+  data = std_data_n,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 1), class = "Intercept"),
+    prior(normal(0, 1), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  save_pars = save_pars(all = TRUE),
+  sig_figs = 10,
+  file = "modCC_output.rds"
+  )
+
+#Prepare and standardise variables:
+std_data_g <- data %>%
+  mutate(
+    group = factor(group),
+    trialGroup = factor(trial_group),
+    congruence = standardize(congruence)
+  ) %>%
+  select(group, trialGroup, congruence, blockorder) %>%
+  distinct()
+
+#Fit the model where choice congruence is predicted by group by trial group:
+modCCP <- brm(
+  congruence ~ group:trialGroup,
+  data = std_data_g,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 1), class = "Intercept"),
+    prior(normal(0, 1), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  save_pars = save_pars(all = TRUE),
+  sig_figs = 10,
+  file = "modCCP_output.rds"
+  )
+```
+
+Inspect output:
+
+```{r}
+#Load the model output from a file:
+modCC <- readRDS("modCC_output.rds")
+modCCP <- readRDS("modCCP_output.rds")
+
+#Return model output:
+summary(modCC)
+summary(modCCP)
+```
+
+To plot parameter distributions, first extract posterior samples:
+
+```{r}
+#Extract posterior samples:
+modCC_posterior <- posterior_samples(modCC)
+modCCP_posterior <- posterior_samples(modCCP)
+
+#To visualise later, save to .csv:
+write.table(modCC_posterior, file="modCC_posterior.csv",sep=",",row.names=F)
+write.table(modCCP_posterior, file="modCCP_posterior.csv",sep=",",row.names=F)
+```
+
+Plot parameter distributions with credible intervals:
+
+```{r, fig.height=10, fig.width=6}
+#Read in posterior samples .csv to data frame:
+modCC_posterior <- read.csv("modCC_posterior.csv")
+
+
+#Filter out 'lprior' and 'lp__':
+modCC_posterior <- modCC_posterior[, c("b_neurotypeASC.trialGroup1", "b_neurotypeNT.trialGroup1", "b_neurotypeASC.trialGroup2", "b_neurotypeNT.trialGroup2",  "b_neurotypeASC.trialGroup3", "b_neurotypeNT.trialGroup3", "b_neurotypeASC.trialGroup4", "b_neurotypeNT.trialGroup4","b_neurotypeASC.trialGroup5", "b_neurotypeNT.trialGroup5", "b_neurotypeASC.trialGroup6", "b_neurotypeNT.trialGroup6", "b_neurotypeASC.trialGroup7", "b_neurotypeNT.trialGroup7", "b_neurotypeASC.trialGroup8", "b_neurotypeNT.trialGroup8",  "sigma")]
+
+#Convert the data frame to long format:
+modCC_posterior_long <- pivot_longer(modCC_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+modCC_posterior_long$Parameter <- recode(modCC_posterior_long$Parameter,
+                                         "b_neurotypeASC.trialGroup1"= "ASC:1", 
+                                         "b_neurotypeNT.trialGroup1"= "NT:1",
+                                         "b_neurotypeASC.trialGroup2" = "ASC:2",
+                                         "b_neurotypeNT.trialGroup2" = "NT:2",
+                                         "b_neurotypeASC.trialGroup3" = "ASC:3",
+                                         "b_neurotypeNT.trialGroup3" = "NT:3",
+                                         "b_neurotypeASC.trialGroup4" = "ASC:4", 
+                                         "b_neurotypeNT.trialGroup4" = "NT:4",
+                                         "b_neurotypeASC.trialGroup5" = "ASC:5",
+                                         "b_neurotypeNT.trialGroup5" = "NT:5",
+                                         "b_neurotypeASC.trialGroup6" = "ASC:6",
+                                         "b_neurotypeNT.trialGroup6" = "NT:6",
+                                         "b_neurotypeASC.trialGroup7" = "ASC:7",
+                                         "b_neurotypeNT.trialGroup7" = "NT:7",
+                                         "b_neurotypeASC.trialGroup8" = "ASC:8",
+                                         "b_neurotypeNT.trialGroup8" = "NT:8",
+                                         "sigma" = "Sigma")
+#Define colors for groups:
+colors <- c("NT" = "#B2E5E5", "ASC" = "#E5CCFF")
+
+#Extract group information from parameter names:
+modCC_posterior_long$Group <- sub(":.*", "", modCC_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+modCC_posterior_long$Parameter <- factor(modCC_posterior_long$Parameter, 
+                                            levels = rev(c("ASC:1","NT:1","ASC:2","NT:2","ASC:3","NT:3","ASC:4", "NT:4", "ASC:5","NT:5","ASC:6","NT:6", "ASC:7","NT:7","ASC:8","NT:8","Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+ggplot(modCC_posterior_long, aes(x = Estimate, y = Parameter, fill = Group)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3) +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Group") +
+  plot_title +
+  scale_fill_manual(values = colors,  breaks = c("NT", "ASC")) + 
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed") +  # Add a dashed line at x = 0
+  geom_hline(yintercept = c(3.5, 5.5, 7.5, 9.5, 11.5, 13.5, 15.5), linetype = "dashed", color = "gray50", size = 0.5, alpha = 0.5)  # Add lines between trial groups
+ggsave( 'Con_d_dist.png', plot = last_plot(), dpi = 300)
+
+###################################################################################
+
+#Read in posterior samples .csv to data frame:
+modCCP_posterior <- read.csv("modCCP_posterior.csv")
+
+
+#Filter out 'lprior' and 'lp__':
+modCCP_posterior <- modCCP_posterior[, c(
+"b_groupASC.trialGroup1",
+"b_groupNT.trialGroup1",
+"b_groupPDA.trialGroup1",
+"b_groupASC.trialGroup2",
+"b_groupNT.trialGroup2",
+"b_groupPDA.trialGroup2",
+"b_groupASC.trialGroup3",
+"b_groupNT.trialGroup3",
+"b_groupPDA.trialGroup3",
+"b_groupASC.trialGroup4",
+"b_groupNT.trialGroup4",
+"b_groupPDA.trialGroup4",
+"b_groupASC.trialGroup5",
+"b_groupNT.trialGroup5",
+"b_groupPDA.trialGroup5",
+"b_groupASC.trialGroup6",
+"b_groupNT.trialGroup6",
+"b_groupPDA.trialGroup6",
+"b_groupASC.trialGroup7",
+"b_groupNT.trialGroup7",
+"b_groupPDA.trialGroup7",
+"b_groupASC.trialGroup8",
+"b_groupNT.trialGroup8",
+"b_groupPDA.trialGroup8", "sigma")]
+
+#Convert the data frame to long format:
+modCCP_posterior_long <- pivot_longer(modCCP_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+modCCP_posterior_long$Parameter <- recode(modCCP_posterior_long$Parameter,
+                                         "b_groupASC.trialGroup1"= "ASC:1", 
+                                         "b_groupNT.trialGroup1"= "NT:1",
+                                         "b_groupPDA.trialGroup1" = "PDA:1",
+                                         "b_groupASC.trialGroup2" = "ASC:2",
+                                         "b_groupNT.trialGroup2" = "NT:2",
+                                         "b_groupPDA.trialGroup2" = "PDA:2",
+                                         "b_groupASC.trialGroup3" = "ASC:3",
+                                         "b_groupNT.trialGroup3" = "NT:3",
+                                         "b_groupPDA.trialGroup3" = "PDA:3",
+                                         "b_groupASC.trialGroup4" = "ASC:4", 
+                                         "b_groupNT.trialGroup4" = "NT:4",
+                                         "b_groupPDA.trialGroup4" = "PDA:4",
+                                         "b_groupASC.trialGroup5" = "ASC:5",
+                                         "b_groupNT.trialGroup5" = "NT:5",
+                                         "b_groupPDA.trialGroup5" = "PDA:5",
+                                         "b_groupASC.trialGroup6" = "ASC:6",
+                                         "b_groupNT.trialGroup6" = "NT:6",
+                                         "b_groupPDA.trialGroup6" = "PDA:6",
+                                         "b_groupASC.trialGroup7" = "ASC:7",
+                                         "b_groupNT.trialGroup7" = "NT:7",
+                                         "b_groupPDA.trialGroup7" = "PDA:7",
+                                         "b_groupASC.trialGroup8" = "ASC:8",
+                                         "b_groupNT.trialGroup8" = "NT:8",
+                                         "b_groupPDA.trialGroup8" = "PDA:8",
+                                         "sigma" = "Sigma")
+#Define colors for groups:
+colors <- c("NT" = "#B2E5E5", "ASC" = "#E5CCFF", "PDA" = "#99B2B2")
+
+#Extract group information from parameter names:
+modCCP_posterior_long$Group <- sub(":.*", "", modCCP_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+modCCP_posterior_long$Parameter <- factor(modCCP_posterior_long$Parameter, 
+                                            levels = rev(c("ASC:1","NT:1","PDA:1", "ASC:2","NT:2","PDA:2","ASC:3","NT:3","PDA:3","ASC:4", "NT:4", "PDA:4","ASC:5","NT:5","PDA:5","ASC:6","NT:6", "PDA:6","ASC:7","NT:7","PDA:7","ASC:8","NT:8","PDA:8","Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+ggplot(modCCP_posterior_long, aes(x = Estimate, y = Parameter, fill = Group)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3) +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Group") +
+  plot_title +
+  scale_fill_manual(values = colors,  breaks = c("NT", "ASC", "PDA")) + 
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed") + # Add a dashed line at x = 0
+  geom_hline(yintercept = c(4.5, 7.5, 10.5, 13.5, 16.5, 19.5, 22.5), linetype = "dashed", color = "gray50", size = 0.5, alpha = 0.5)  # Add lines between trial groups
+ggsave( 'Con_g_dist.png', plot = last_plot(), dpi = 300)
+```
+
+Visualise model-predicted choice congruence values by neurotype/group and trial group:
+
+```{r}
+#Read in saved data file:
+data <- read.csv("congruence_STABLE.csv")
+
+#Prepare and standardise variables:
+std_data_n <- data %>%
+  mutate(
+    neurotype = factor(neurotype),
+    trialGroup = factor(trial_group),
+    congruence = standardize(congruence)
+  ) %>%
+  select(neurotype, trialGroup, congruence, blockorder) %>%
+  distinct()
+
+#Load the model output from a file:
+modCC <- readRDS("modCC_output.rds")
+
+#Extract conditional effects:
+ce_CC <- conditional_effects(modCC)
+
+#Convert the specific effect to a data frames:
+ce_CC <- as.data.frame(ce_CC$`neurotype:trialGroup`)
+
+#Select relevant columns:
+ce_CC <- ce_CC %>% 
+  select(neurotype, trialGroup, estimate__, lower__, upper__)
+
+#Calculate means for each condition:
+mean_estimates <- ce_CC %>%
+  group_by(trialGroup, neurotype) %>%
+  dplyr::summarize(mean_est = mean(estimate__, na.rm = TRUE))
+
+#Plot for MASQ for sim_modRM:
+ggplot(ce_CC, aes(x = factor(trialGroup), y = estimate__, color = neurotype)) +
+  geom_jitter(data = std_data_n, aes(x = factor(trialGroup), y = congruence, color = neurotype), alpha = 0.2) +
+  theme_minimal() +  # Use a minimal theme
+  labs(title = "Effect Of Neurotype And Trial Group On Choice Congruence",
+       x = "Trial Group",
+       y = "Estimated Effect") +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.position = "right",
+    legend.spacing.y = unit(0.1, "cm"),  
+    legend.margin = margin(0, 0, 0, 0),
+    legend.key.height = unit(0.1, "cm"),  
+    legend.text = element_text(size = 10),  
+    strip.text = element_text(size = 12)  # Keep facet labels for blockorder
+  ) +
+  scale_color_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), name = "Neurotype",  breaks = c("NT", "ASC")) +
+  scale_fill_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), name = "Neurotype",  breaks = c("NT", "ASC")) + 
+  # Add error bars
+  geom_errorbar(data = ce_CC, aes(x = trialGroup, ymin = lower__, ymax = upper__), 
+                width = 0.2, size = 1) +
+  # Add lines connecting the mean points for each neurotype
+  geom_line(data = mean_estimates, aes(x = trialGroup, y = mean_est, group = neurotype),
+             size = 1) +
+  # Add mean points for each neurotype
+  geom_point(data = mean_estimates, aes(x = trialGroup, y = mean_est), size = 4, shape = 18)  # Shape 18 for diamond
+ggsave( 'Con_Marg.png', plot = last_plot(), dpi = 300)
+
+###################################################################################
+
+#Read in saved data file:
+data <- read.csv("congruence_STABLE.csv")
+
+#Prepare and standardise variables:
+std_data_g <- data %>%
+  mutate(
+    group = factor(group),
+    trialGroup = factor(trial_group),
+    congruence = standardize(congruence)
+  ) %>%
+  select(group, trialGroup, congruence, blockorder) %>%
+  distinct()
+
+#Load the model output from a file:
+modCCP <- readRDS("modCCP_output.rds")
+
+#Extract conditional effects:
+ce_CCP <- conditional_effects(modCCP)
+
+#Convert the specific effect to a data frames:
+ce_CCP <- as.data.frame(ce_CCP$`group:trialGroup`)
+
+#Select relevant columns:
+ce_CCP <- ce_CCP %>% 
+  select(group, trialGroup, estimate__, lower__, upper__)
+
+#Calculate means for each condition:
+mean_estimates <- ce_CCP %>%
+  group_by(trialGroup, group) %>%
+  dplyr::summarize(mean_est = mean(estimate__, na.rm = TRUE))
+
+#Plot for MASQ for sim_modRM:
+ggplot(ce_CCP, aes(x = factor(trialGroup), y = estimate__, color = group)) +
+  geom_jitter(data = std_data_g, aes(x = factor(trialGroup), y = congruence, color = group), alpha = 0.2) +
+  theme_minimal() +  # Use a minimal theme
+  labs(title = "Effect Of Group And Trial Group On Choice Congruence",
+       x = "Trial Group",
+       y = "Estimated Effect") +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.position = "right",
+    legend.spacing.y = unit(0.1, "cm"),  
+    legend.margin = margin(0, 0, 0, 0),
+    legend.key.height = unit(0.1, "cm"),  
+    legend.text = element_text(size = 10),  
+    strip.text = element_text(size = 12)  # Keep facet labels for blockorder
+  ) +
+  scale_color_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc", "PDA" = "#336666"), name = "Group",  breaks = c("NT", "ASC", "PDA")) +
+  scale_fill_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc", "PDA" = "#336666"), name = "Group",  breaks = c("NT", "ASC", "PDA")) + # Customize colors for groups 
+  # Add error bars
+  geom_errorbar(data = ce_CCP, aes(x = trialGroup, ymin = lower__, ymax = upper__), 
+                width = 0.2, size = 1) +
+  # Add lines connecting the mean points for each group
+  geom_line(data = mean_estimates, aes(x = trialGroup, y = mean_est, group = group),
+             size = 1) +
+  # Add mean points for each group
+  geom_point(data = mean_estimates, aes(x = trialGroup, y = mean_est), size = 4, shape = 18)  # Shape 18 for diamond
+ggsave( 'Con_Marg_P.png', plot = last_plot(), dpi = 300)
+```
+
+The above plot shows model estimates for the effect of neurotype and group on choice congruence by trial group (blocks of 10 trials) for the stable condition - diamonds and lines show mean estimates for each block presentation by neruotype and group. Together with posterior distributions, it is evident that neither neruotype or group meaningfully influence choice congruence in any set of trials.
+
+## Lose-shift behaviour
+
+To better understand the relationship between lose-shift behaviour and neurotype, will model lose-shift behaviours predicted by neurotype x MASQ and neurotype x EDA-QA scores.
+
+$$ loseShift_i \sim \text{Normal}( \mu_i, \sigma ) \\ \mu_{ij} = \alpha + \beta_1 \text{MASQ}_i + \beta_2 \text{neurotype}_j + \beta_3 (\text{MASQ}_i \times \text{neurotype}_j) + \beta_4 \text{EDAQ}_i + \beta_5 (\text{EDAQ}_i \times \text{neurotype}_j) \\ \alpha \sim {Normal}(0, 1) \quad \\ \beta_1, \beta_2, \beta_3, \beta_4, \beta_5  \sim {Normal}(0, 1) \quad  \\ \sigma \sim \text{Exponential}(1) $$
+
+Soon we will perform prior predictive checks and sensitivity analysis to justify our choice of priors, but for now, we will use uninformative flat priors to check the simulation is working- because we simulate standardised variables we will assume $Normal(0,1)$.
+
+Now fit the models to the data- again, in lieu of justified priors, we will assume $Normal(0,1)$:
+
+```{r}
+#Read in saved data file:
+data <- read.csv("Data.csv")
+
+#Prepare and standardise variables:
+std_data <- data %>%
+  mutate(
+    EDAQ = standardize(EDAQ),
+    MASQ = standardize(MASQ),
+    loseShift = standardize(loseShift)
+  ) %>%
+  select(subject, EDAQ, MASQ, loseShift, neurotype) %>%
+  distinct()
+
+#Fit the model where lose-shift behaviours are predicted by a MASQ*neurotype and EDA-QA*neurotype:
+modLS_S <- brm(
+  loseShift ~ MASQ*neurotype + EDAQ*neurotype,
+  data = std_data,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 1), class = "Intercept"),
+    prior(normal(0, 1), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modLS_S_output.rds"
+  )
+```
+
+Inspect model output:
+
+```{r}
+#Load the model output from a file:
+modLS_S <- readRDS("modLS_S_output.rds")
+
+#Return model output:
+summary(modLS_S)
+```
+
+Plot parameter distributions with credible intervals:
+
+```{r}
+#Extract posterior samples:
+modLS_S_posterior <- posterior_samples(modLS_S)
+
+
+#Filter out 'lprior' and 'lp__':
+modLS_S_posterior <- modLS_S_posterior[, c("b_Intercept", "b_MASQ", "b_neurotypeNT","b_EDAQ", "b_MASQ:neurotypeNT", "b_neurotypeNT:EDAQ", "sigma")]
+
+#Convert the data frame to long format:
+modLS_S_posterior_long <- pivot_longer(modLS_S_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+modLS_S_posterior_long$Parameter <- recode(modLS_S_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept",
+                                            "b_MASQ" = "MASQ", 
+                                            "b_neurotypeNT" = "neurotypeNT",
+                                            "b_EDAQ" = "EDAQ", 
+                                            "b_MASQ:neurotypeNT" = "MASQ:neurotypeNT", 
+                                            "b_neurotypeNT:EDAQ" = "neurotypeNT:EDAQ", 
+                                            "sigma" = "Sigma")
+
+#Extract group information from parameter names:
+modLS_S_posterior_long$Group <- sub(":.*", "", modLS_S_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+modLS_S_posterior_long$Parameter <- factor(modLS_S_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept","MASQ","neurotypeNT","EDAQ","MASQ:neurotypeNT","neurotypeNT:EDAQ","Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+ggplot(modLS_S_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+```
+
+Visualise model-predicted lose-shift behaviours as a function of MASQ and EDA-QA scores by neurotype for the stable condition only:
+
+```{r}
+#Read in saved data file:
+data <- read.csv("Data.csv")
+
+#Prepare and standardise variables:
+std_data <- data %>%
+  mutate(
+    EDAQ = standardize(EDAQ),
+    MASQ = standardize(MASQ),
+    loseShift = standardize(loseShift)
+  ) %>%
+  select(subject, EDAQ, MASQ, loseShift, neurotype) %>%
+  distinct()
+
+#Load the model output from a file:
+modLS_S <- readRDS("modLS_S_output.rds")
+
+#Extract conditional effects:
+ce_LS_S <- conditional_effects(modLS_S)
+
+#Convert the specific effect to a data frames:
+ce_LS_S_MASQ <- as.data.frame(ce_LS_S$`MASQ:neurotype`)
+ce_LS_S_EDAQ <- as.data.frame(ce_LS_S$`EDAQ:neurotype`)
+
+#Select relevant columns:
+ce_LS_S_MASQ <- ce_LS_S_MASQ %>% 
+  select(MASQ, neurotype, estimate__, lower__, upper__)
+ce_LS_S_EDAQ <- ce_LS_S_EDAQ %>% 
+  select(EDAQ, neurotype, estimate__, lower__, upper__)
+
+#Plot for MASQ:
+LS_S_plot_masq <- ggplot(ce_LS_S_MASQ, aes(x = MASQ, y = estimate__, color = neurotype)) +
+  geom_point(data = std_data, aes(x = MASQ, y = loseShift, color = neurotype)) +
+  geom_line(aes(y = estimate__),size = 1) +  # Line for estimated effects
+  geom_ribbon(aes(ymin = lower__, ymax = upper__, fill = neurotype), alpha = 0.3, color = NA) +  # Ribbons for uncertainty
+  theme_minimal() +  # Use a minimal theme
+  labs(x = "MASQ (std)",
+       y = "Estimated Effect") +
+  scale_color_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), guide = "none") +
+  scale_fill_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), guide = "none") # Customize colors for groups
+
+#Plot for EDAQ:
+LS_S_plot_edaq <- ggplot(ce_LS_S_EDAQ, aes(x = EDAQ, y = estimate__, color = neurotype)) +
+  geom_point(data = std_data, aes(x = EDAQ, y = loseShift, color = neurotype)) +
+  geom_line(aes(y = estimate__),size = 1) +  # Line for estimated effects
+  geom_ribbon(aes(ymin = lower__, ymax = upper__, fill = neurotype), alpha = 0.3, color = NA) +  # Ribbons for uncertainty
+  theme_minimal() +  # Use a minimal theme
+  labs(x = "EDAQ (std)",
+       y = "") +
+  scale_color_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), name = "Neurotype",  breaks = c("NT", "ASC")) + 
+  scale_fill_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), name = "Neurotype",  breaks = c("NT", "ASC"))  
+
+#Combine the plots:
+(LS_S_plot_masq + LS_S_plot_edaq) + plot_annotation(title = "Effect Of MASQ And EDAQ Scores On Lose-Shift behaviour In 
+The Stable COndition By Neurotype")
+```
+
+The plots above depict the estimated effect of MASQ and EDA-QA scores on lose-shift behaviours calculated for the stable condition only. For the NT group, models predict that lose-shift behaviours in the stable condition are slightly positively associated with anxiety scores and slightly negatively associated with PDA behaviours. For the ASC group, models predict that lose-shift behaviours in the stable condition are negatively associated with anxiety scores and positively associated with PDA behaviours. However, in both instances, both models predict a large amount of variability in parameter estimates, rendering these relationships negligble.
+
+# Prior predictive checks
+
+"A prior predictive check displays simulated data that are generated from parameter values in the prior distribution. The simulated data from the mathematically specified prior should show trends that match the trends assumed by prior knowledge" (Kruschke, 2021).
+
+We want to know that our choice of priors accurately represents our assumptions about our parameters. To do this, we can simulate priors from our model and relate them to observed values.
+
+We have chosen weakly informative priors, $Normal(0,1)$.
+
+## Choice congruence
+
+```{r}
+#Read in saved data file:
+data <- read.csv("congruence_STABLE.csv")
+
+#Prepare and standardise variables:
+std_data_n <- data %>%
+  mutate(
+    neurotype = factor(neurotype),
+    trialGroup = factor(trial_group),
+    congruence = standardize(congruence)
+  ) %>%
+  select(neurotype, trialGroup, congruence, blockorder) %>%
+  distinct()
+
+#A model with broad priors that acommodate uncertainty pertaining to the relationship between congruence and neurotype by trial group:
+modCC_prior <- brm(
+  congruence ~ neurotype:trialGroup,
+  data = std_data_n,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 1), class = "Intercept"),
+    prior(normal(0, 1), class = "b"),
+    prior(exponential(1), class = "sigma")),
+  sample_prior = "only",
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modCC_prior_output.rds"
+  )
+
+###################################################################################
+
+#Prepare and standardise variables:
+std_data_g <- data %>%
+  mutate(
+    group = factor(group),
+    trialGroup = factor(trial_group),
+    congruence = standardize(congruence)
+  ) %>%
+  select(group, trialGroup, congruence, blockorder) %>%
+  distinct()
+
+#A model with broad priors that acommodate uncertainty pertaining to the relationship between congruence and group by trial group:
+modCCP_prior <- brm(
+  congruence ~ group:trialGroup,
+  data = std_data_g,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 1), class = "Intercept"),
+    prior(normal(0, 1), class = "b"),
+    prior(exponential(1), class = "sigma")),
+  sample_prior = "only",
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modCCP_prior_output.rds"
+  )
+```
+
+We can inspect the output here:
+
+```{r}
+#Load the model output from a file:
+modCC_prior <- readRDS("modCC_prior_output.rds")
+modCCP_prior <- readRDS("modCCP_prior_output.rds")
+
+#Return model output:
+summary(modCC_prior)
+summary(modCCP_prior)
+```
+
+Draw samples from the prior predictive simulation above and plot against our data:
+
+```{r}
+#Run a prior predictive check that compares the distribution of prior predicted values to the distribution of observed values:
+pp_check(modCC_prior, ndraws = 100) + ggtitle("Prior Predictive Check Plot for congruence ~ neurotype:trialGroup")
+pp_check(modCCP_prior, ndraws = 100) + ggtitle("Prior Predictive Check Plot for congruence ~ group:trialGroup (with PDA)")
+```
+
+The 'y' line represents the distribution of our observed data, while the 'y_rep' lines represent the distribution of data simulated from the model (based on a 100 draws from the prior distribution of the model parameters). Observed data appear to be a mixture of Gaussian distributions centered around 0. Importantly, for both models, model predictions overlap with observed data, which suggests that model predictions are consistent with the observed data.
+
+## Lose-shift behaviour
+
+```{r}
+#Read in saved data file:
+data <- read.csv("Data.csv")
+
+#Prepare and standardise variables:
+std_data <- data %>%
+  mutate(
+    EDAQ = standardize(EDAQ),
+    MASQ = standardize(MASQ),
+    loseShift = standardize(loseShift)
+  ) %>%
+  select(subject, EDAQ, MASQ, loseShift, neurotype) %>%
+  distinct()
+
+#A model with broad priors that acommodate uncertainty pertaining to the relationship between loseShift and MASQ and EDA-QA scores by neurotype:
+modLS_S_prior <- brm(
+  loseShift ~ MASQ*neurotype + EDAQ*neurotype,
+  data = std_data,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 1), class = "Intercept"),
+    prior(normal(0, 1), class = "b"),
+    prior(exponential(1), class = "sigma")),
+  sample_prior = "only",
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modLS_S_prior_output.rds"
+  )
+```
+
+We can inspect the output here:
+
+```{r}
+#Load the model output from a file:
+modLS_S_prior <- readRDS("modLS_S_prior_output.rds")
+
+#Return model output:
+summary(modLS_S_prior)
+```
+
+Draw samples from the prior predictive simulation above and plot against our data:
+
+```{r}
+#Run a prior predictive check that compares the distribution of prior predicted values to the distribution of observed values:
+pp_check(modLS_S_prior, ndraws = 100) + ggtitle("Prior Predictive Check Plot for loseShift ~ MASQ*neurotype + EDAQ*neurotype For Stable Condition Only")
+```
+
+Again, the 'y' line represents the distribution of our observed data, while the 'y_rep' lines represent the distribution of data simulated from the model (based on a 100 draws from the prior distribution of the model parameters). Observed data appear to be a mixture of Gaussian distributions centered around 0. Importantly, model predictions overlap with observed data, which suggests that model predictions are consistent with the observed data.
+
+# Computation and posterior distribution
+
+## Details of the computation
+
+All computations to derive posterior distributions for all three models were conducted using the brms() package (source details available in Package install_20.05.24.r- see packages and libraries); this includes ˆR and effective sample size (ESS).
+
+Again, chapter 12 of the following webpage provides some useful guidance on how brms() models are specified: [Chapter 12 Bayesian estimation with brms \| An R companion to Statistics: data analysis and modelling (mspeekenbrink.github.io)](https://mspeekenbrink.github.io/sdam-r-companion/bayesian-estimation-with-brms.html)
+
+We must check that the MCMC chains for every parameter have converged and are long enough to provide stable estimates.
+
+Convergence here is indicated by ˆR, which must be near 1.0 to indicate convergence. When ˆR is above 1.00, it usually indicates that the chain has not yet converged, and probably you shouldn't trust the samples.
+
+The effective length of an MCMC chain is indicated by the effective sample size (ESS), which refers to the sample size of the MCMC chain not to the sample size of the data. When n_eff is much lower than the actual number of iterations (minus warm-up) of your chains, it means the chains are inefficient, but possibly still okay.
+
+### Choice congruence
+
+Review model output:
+
+```{r}
+#Load the model output from a file:
+modCC <- readRDS("modCC_output.rds")
+modCCP <- readRDS("modCCP_output.rds")
+
+#Return model output:
+summary(modCC)
+summary(modCCP)
+
+#We can also get model parameters:
+get_prior(modCC)
+get_prior(modCCP)
+```
+
+For both models, ˆR and n_eff (ESS) look ok; ˆR is 1 for each parameter, and n_eff is \> than the actual number of iterations (minus warm-up) of the chain.
+
+We can also inspect the MCMC with a trace plot.
+
+```{r}
+#Generate trace plots for each model:
+mcmc_trace(modCC)
+mcmc_trace(modCCP)
+```
+
+All chains look good.
+
+### Lose-shift behaviour
+
+And again for lose-shift behaviours predicted by MASQ and EDA-QA scores by neurotype for stable condition:
+
+```{r}
+#Load the model output from file:
+modLS_S <- readRDS("modLS_S_output.rds")
+
+#Return model output:
+summary(modLS_S)
+
+#We can also get model parameters:
+get_prior(modLS_S)
+```
+
+ˆR and n_eff (ESS) look ok; ˆR is 1 for each parameter, and n_eff is \> than the actual number of iterations (minus warm-up) of the chain.
+
+We can also inspect the MCMC with a trace plot.
+
+```{r}
+#Generate trace plots for each model:
+mcmc_trace(modLS_S)
+```
+
+Again, all chains look good.
+
+## Posterior predictive check
+
+### Choice congruence
+
+Below we view the posterior predictions plotted against our data for choice congruence predicted by group by trial group for the stable condition.
+
+```{r}
+#Perform a graphical posterior predictive check for both models:
+pp_check(modCC, ndraws = 100) + ggtitle("Posterior Predictive Check Plot for congruence ~ neurotype:trialGroup")
+pp_check(modCCP, ndraws = 100) + ggtitle("Posterior Predictive Check Plot for congruence ~ group:trialGroup (with PDA)")
+```
+
+Again, observed data appear to be a mixture of Gaussian distributions centered around 0. Model predictions for are also normally distributed (centered around 0). Importantly, both distributions closely overlap each other, which suggests that model predictions are consistent with the observed data.
+
+### Lose-shift behaviour
+
+Below we view the posterior predictions plotted against our data for lose-shift behaviours predicted by MASQ and EDA-QA scores for stable condition only.
+
+```{r}
+#Perform a graphical posterior predictive check for both models:
+pp_check(modLS_S, ndraws = 100) + ggtitle("Posterior Predictive Check Plot for loseShift ~ MASQ*neurotype + EDAQ*neurotype For Stable Condition")
+```
+
+As with out prior predictive checks, the 'y' line of the pp_check output represents the distribution of our observed (in this case, simulated) data, while the 'y_rep' lines represent the distribution of data simulated from the model (based on a 100 draws from the posterior distribution of the model parameters). Observed data appear to be a mixture of Gaussian distributions centered around 0. Model predictions are normally distributed and centered around 0. Importantly, they overlap each other, which suggests that model predictions are consistent with the observed data.
+
+## Marginal posterior distribution
+
+### Choice congruence
+
+Inspect the output for model-predicted choice congruence values for group and its interaction with trialGroup (with and without PDA), this time we will consider the marginal posterior distribution of each parameter (central tendency and credible intervals). Plot parameter distributions with means and credible intervals:
+
+```{r, fig.height=10, fig.width=6}
+#Read in posterior samples .csv to data frame:
+modCC_posterior <- read.csv("modCC_posterior.csv")
+
+
+#Filter out 'lprior' and 'lp__':
+modCC_posterior <- modCC_posterior[, c("b_neurotypeASC.trialGroup1", "b_neurotypeNT.trialGroup1", "b_neurotypeASC.trialGroup2", "b_neurotypeNT.trialGroup2",  "b_neurotypeASC.trialGroup3", "b_neurotypeNT.trialGroup3", "b_neurotypeASC.trialGroup4", "b_neurotypeNT.trialGroup4","b_neurotypeASC.trialGroup5", "b_neurotypeNT.trialGroup5", "b_neurotypeASC.trialGroup6", "b_neurotypeNT.trialGroup6", "b_neurotypeASC.trialGroup7", "b_neurotypeNT.trialGroup7", "b_neurotypeASC.trialGroup8", "b_neurotypeNT.trialGroup8",  "sigma")]
+
+#Convert the data frame to long format:
+modCC_posterior_long <- pivot_longer(modCC_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+modCC_posterior_long$Parameter <- recode(modCC_posterior_long$Parameter,
+                                         "b_neurotypeASC.trialGroup1"= "ASC:1", 
+                                         "b_neurotypeNT.trialGroup1"= "NT:1",
+                                         "b_neurotypeASC.trialGroup2" = "ASC:2",
+                                         "b_neurotypeNT.trialGroup2" = "NT:2",
+                                         "b_neurotypeASC.trialGroup3" = "ASC:3",
+                                         "b_neurotypeNT.trialGroup3" = "NT:3",
+                                         "b_neurotypeASC.trialGroup4" = "ASC:4", 
+                                         "b_neurotypeNT.trialGroup4" = "NT:4",
+                                         "b_neurotypeASC.trialGroup5" = "ASC:5",
+                                         "b_neurotypeNT.trialGroup5" = "NT:5",
+                                         "b_neurotypeASC.trialGroup6" = "ASC:6",
+                                         "b_neurotypeNT.trialGroup6" = "NT:6",
+                                         "b_neurotypeASC.trialGroup7" = "ASC:7",
+                                         "b_neurotypeNT.trialGroup7" = "NT:7",
+                                         "b_neurotypeASC.trialGroup8" = "ASC:8",
+                                         "b_neurotypeNT.trialGroup8" = "NT:8",
+                                         "sigma" = "Sigma")
+#Define colors for groups:
+colors <- c("NT" = "#B2E5E5", "ASC" = "#E5CCFF")
+
+#Extract group information from parameter names:
+modCC_posterior_long$Group <- sub(":.*", "", modCC_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+modCC_posterior_long$Parameter <- factor(modCC_posterior_long$Parameter, 
+                                            levels = rev(c("ASC:1","NT:1","ASC:2","NT:2","ASC:3","NT:3","ASC:4", "NT:4", "ASC:5","NT:5","ASC:6","NT:6", "ASC:7","NT:7","ASC:8","NT:8","Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+ggplot(modCC_posterior_long, aes(x = Estimate, y = Parameter, fill = Group)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3) +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Group") +
+  plot_title +
+  scale_fill_manual(values = colors,  breaks = c("NT", "ASC")) + 
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed") +  # Add a dashed line at x = 0
+  geom_hline(yintercept = c(3.5, 5.5, 7.5, 9.5, 11.5, 13.5, 15.5), linetype = "dashed", color = "gray50", size = 0.5, alpha = 0.5)  # Add lines between trial groups
+ggsave( 'Con_d_dist.png', plot = last_plot(), dpi = 300)
+
+###################################################################################
+
+#Read in posterior samples .csv to data frame:
+modCCP_posterior <- read.csv("modCCP_posterior.csv")
+
+
+#Filter out 'lprior' and 'lp__':
+modCCP_posterior <- modCCP_posterior[, c(
+"b_groupASC.trialGroup1",
+"b_groupNT.trialGroup1",
+"b_groupPDA.trialGroup1",
+"b_groupASC.trialGroup2",
+"b_groupNT.trialGroup2",
+"b_groupPDA.trialGroup2",
+"b_groupASC.trialGroup3",
+"b_groupNT.trialGroup3",
+"b_groupPDA.trialGroup3",
+"b_groupASC.trialGroup4",
+"b_groupNT.trialGroup4",
+"b_groupPDA.trialGroup4",
+"b_groupASC.trialGroup5",
+"b_groupNT.trialGroup5",
+"b_groupPDA.trialGroup5",
+"b_groupASC.trialGroup6",
+"b_groupNT.trialGroup6",
+"b_groupPDA.trialGroup6",
+"b_groupASC.trialGroup7",
+"b_groupNT.trialGroup7",
+"b_groupPDA.trialGroup7",
+"b_groupASC.trialGroup8",
+"b_groupNT.trialGroup8",
+"b_groupPDA.trialGroup8", "sigma")]
+
+#Convert the data frame to long format:
+modCCP_posterior_long <- pivot_longer(modCCP_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+modCCP_posterior_long$Parameter <- recode(modCCP_posterior_long$Parameter,
+                                         "b_groupASC.trialGroup1"= "ASC:1", 
+                                         "b_groupNT.trialGroup1"= "NT:1",
+                                         "b_groupPDA.trialGroup1" = "PDA:1",
+                                         "b_groupASC.trialGroup2" = "ASC:2",
+                                         "b_groupNT.trialGroup2" = "NT:2",
+                                         "b_groupPDA.trialGroup2" = "PDA:2",
+                                         "b_groupASC.trialGroup3" = "ASC:3",
+                                         "b_groupNT.trialGroup3" = "NT:3",
+                                         "b_groupPDA.trialGroup3" = "PDA:3",
+                                         "b_groupASC.trialGroup4" = "ASC:4", 
+                                         "b_groupNT.trialGroup4" = "NT:4",
+                                         "b_groupPDA.trialGroup4" = "PDA:4",
+                                         "b_groupASC.trialGroup5" = "ASC:5",
+                                         "b_groupNT.trialGroup5" = "NT:5",
+                                         "b_groupPDA.trialGroup5" = "PDA:5",
+                                         "b_groupASC.trialGroup6" = "ASC:6",
+                                         "b_groupNT.trialGroup6" = "NT:6",
+                                         "b_groupPDA.trialGroup6" = "PDA:6",
+                                         "b_groupASC.trialGroup7" = "ASC:7",
+                                         "b_groupNT.trialGroup7" = "NT:7",
+                                         "b_groupPDA.trialGroup7" = "PDA:7",
+                                         "b_groupASC.trialGroup8" = "ASC:8",
+                                         "b_groupNT.trialGroup8" = "NT:8",
+                                         "b_groupPDA.trialGroup8" = "PDA:8",
+                                         "sigma" = "Sigma")
+#Define colors for groups:
+colors <- c("NT" = "#B2E5E5", "ASC" = "#E5CCFF", "PDA" = "#99B2B2")
+
+#Extract group information from parameter names:
+modCCP_posterior_long$Group <- sub(":.*", "", modCCP_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+modCCP_posterior_long$Parameter <- factor(modCCP_posterior_long$Parameter, 
+                                            levels = rev(c("ASC:1","NT:1","PDA:1", "ASC:2","NT:2","PDA:2","ASC:3","NT:3","PDA:3","ASC:4", "NT:4", "PDA:4","ASC:5","NT:5","PDA:5","ASC:6","NT:6", "PDA:6","ASC:7","NT:7","PDA:7","ASC:8","NT:8","PDA:8","Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+ggplot(modCCP_posterior_long, aes(x = Estimate, y = Parameter, fill = Group)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3) +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Group") +
+  plot_title +
+  scale_fill_manual(values = colors,  breaks = c("NT", "ASC", "PDA")) + 
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed") + # Add a dashed line at x = 0
+  geom_hline(yintercept = c(4.5, 7.5, 10.5, 13.5, 16.5, 19.5, 22.5), linetype = "dashed", color = "gray50", size = 0.5, alpha = 0.5)  # Add lines between trial groups
+ggsave( 'Con_g_dist.png', plot = last_plot(), dpi = 300)
+```
+
+Here, we are primarily interested in the relationship between each group across trial groups.
+
+The first plot shows posterior parameter distributions for ASC and NT groups in each 10 trial block (trial group) of the stable condition. We were interested to see if there was a difference between each neurotyper at each trial group. Studying the plot, it is apparent that while mean estimates for some of the ASC and NT groups differ in some of the trial groups (e.g., trial group 5-8), broad overlapping HDIs suggest a lot of model uncertainty - we cannot draw strong conclusions from these results.
+
+Similarly, the second plot shows posterior parameter distributions for ASC, NT, and PDA groups in each 10 trial block (trial group) of the stable condition. Again, we are interested to see if there is a difference between each group at each trial group. Studying the plot, it is again apparent that while mean estimates for for the PDA group are consitently lower than the ASC and/or NT group (e.g., trial group 2-8), broad overlapping HDIs suggest that there is a lot of model uncertainty - once again, we cannot draw strong conclusions from these results.
+
+Visualise model-predicted choice congruence values for neurotype/group by trial group:
+
+```{r}
+#Read in saved data file:
+data <- read.csv("congruence_STABLE.csv")
+
+#Prepare and standardise variables:
+std_data_n <- data %>%
+  mutate(
+    neurotype = factor(neurotype),
+    trialGroup = factor(trial_group),
+    congruence = standardize(congruence)
+  ) %>%
+  select(neurotype, trialGroup, congruence, blockorder) %>%
+  distinct()
+
+#Load the model output from a file:
+modCC <- readRDS("modCC_output.rds")
+
+#Extract conditional effects:
+ce_CC <- conditional_effects(modCC)
+
+#Convert the specific effect to a data frames:
+ce_CC <- as.data.frame(ce_CC$`neurotype:trialGroup`)
+
+#Select relevant columns:
+ce_CC <- ce_CC %>% 
+  select(neurotype, trialGroup, estimate__, lower__, upper__)
+
+#Calculate means for each condition:
+mean_estimates <- ce_CC %>%
+  group_by(trialGroup, neurotype) %>%
+  dplyr::summarize(mean_est = mean(estimate__, na.rm = TRUE))
+
+#Plot for MASQ for sim_modRM:
+ggplot(ce_CC, aes(x = factor(trialGroup), y = estimate__, color = neurotype)) +
+  geom_jitter(data = std_data_n, aes(x = factor(trialGroup), y = congruence, color = neurotype), alpha = 0.2) +
+  theme_minimal() +  # Use a minimal theme
+  labs(title = "Effect Of Neurotype And Trial Group On Choice Congruence",
+       x = "Trial Group",
+       y = "Estimated Effect") +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.position = "right",
+    legend.spacing.y = unit(0.1, "cm"),  
+    legend.margin = margin(0, 0, 0, 0),
+    legend.key.height = unit(0.1, "cm"),  
+    legend.text = element_text(size = 10),  
+    strip.text = element_text(size = 12)  # Keep facet labels for blockorder
+  ) +
+  scale_color_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), name = "Neurotype",  breaks = c("NT", "ASC")) +
+  scale_fill_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), name = "Neurotype",  breaks = c("NT", "ASC")) + 
+  # Add error bars
+  geom_errorbar(data = ce_CC, aes(x = trialGroup, ymin = lower__, ymax = upper__), 
+                width = 0.2, size = 1) +
+  # Add lines connecting the mean points for each neurotype
+  geom_line(data = mean_estimates, aes(x = trialGroup, y = mean_est, group = neurotype),
+             size = 1) +
+  # Add mean points for each neurotype
+  geom_point(data = mean_estimates, aes(x = trialGroup, y = mean_est), size = 4, shape = 18)  # Shape 18 for diamond
+ggsave( 'Con_Marg.png', plot = last_plot(), dpi = 300)
+
+###################################################################################
+
+#Read in saved data file:
+data <- read.csv("congruence_STABLE.csv")
+
+#Prepare and standardise variables:
+std_data_g <- data %>%
+  mutate(
+    group = factor(group),
+    trialGroup = factor(trial_group),
+    congruence = standardize(congruence)
+  ) %>%
+  select(group, trialGroup, congruence, blockorder) %>%
+  distinct()
+
+#Load the model output from a file:
+modCCP <- readRDS("modCCP_output.rds")
+
+#Extract conditional effects:
+ce_CCP <- conditional_effects(modCCP)
+
+#Convert the specific effect to a data frames:
+ce_CCP <- as.data.frame(ce_CCP$`group:trialGroup`)
+
+#Select relevant columns:
+ce_CCP <- ce_CCP %>% 
+  select(group, trialGroup, estimate__, lower__, upper__)
+
+#Calculate means for each condition:
+mean_estimates <- ce_CCP %>%
+  group_by(trialGroup, group) %>%
+  dplyr::summarize(mean_est = mean(estimate__, na.rm = TRUE))
+
+#Plot for MASQ for sim_modRM:
+ggplot(ce_CCP, aes(x = factor(trialGroup), y = estimate__, color = group)) +
+  geom_jitter(data = std_data_g, aes(x = factor(trialGroup), y = congruence, color = group), alpha = 0.2) +
+  theme_minimal() +  # Use a minimal theme
+  labs(title = "Effect Of Group And Trial Group On Choice Congruence",
+       x = "Trial Group",
+       y = "Estimated Effect") +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.position = "right",
+    legend.spacing.y = unit(0.1, "cm"),  
+    legend.margin = margin(0, 0, 0, 0),
+    legend.key.height = unit(0.1, "cm"),  
+    legend.text = element_text(size = 10),  
+    strip.text = element_text(size = 12)  # Keep facet labels for blockorder
+  ) +
+  scale_color_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc", "PDA" = "#336666"), name = "Group",  breaks = c("NT", "ASC", "PDA")) +
+  scale_fill_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc", "PDA" = "#336666"), name = "Group",  breaks = c("NT", "ASC", "PDA")) + # Customize colors for groups 
+  # Add error bars
+  geom_errorbar(data = ce_CCP, aes(x = trialGroup, ymin = lower__, ymax = upper__), 
+                width = 0.2, size = 1) +
+  # Add lines connecting the mean points for each group
+  geom_line(data = mean_estimates, aes(x = trialGroup, y = mean_est, group = group),
+             size = 1) +
+  # Add mean points for each group
+  geom_point(data = mean_estimates, aes(x = trialGroup, y = mean_est), size = 4, shape = 18)  # Shape 18 for diamond
+ggsave( 'Con_Marg_P.png', plot = last_plot(), dpi = 300)
+```
+
+The above plot shows model estimates for the effect of neurotype (plot 1) and group (plot 2) on choice congruence by trial group (blocks of 10 trials) for the stable condition - diamonds and lines show mean estimates for each block presentation by neurotype/group. Together with posterior distributions, it is evident that neither neurotype or group reliably influences choice congruence in any set of trials. There is an trend of ASC demonstrating choices that deviate more from the underlying task rule compared to NT. Demarcating a PDA group (as the top 67th percentile of EDA-QA scores - including both NT and ASC participants), PDA shows an trend of less choice congruence compared to ASC and NT groups, who both demonstrates similar choice congruence. Neither of these trends a statistically meaningful though.
+
+### Lose-shift behaviour
+
+Consider the marginal posterior distribution of each parameter (central tendency and credible intervals) for loseShift \~ MASQneurotype *+* EDAQneurotype for stable condition only:
+
+```{r}
+#Extract posterior samples:
+modLS_S_posterior <- posterior_samples(modLS_S)
+
+
+#Filter out 'lprior' and 'lp__':
+modLS_S_posterior <- modLS_S_posterior[, c("b_Intercept", "b_MASQ", "b_neurotypeNT","b_EDAQ", "b_MASQ:neurotypeNT", "b_neurotypeNT:EDAQ", "sigma")]
+
+#Convert the data frame to long format:
+modLS_S_posterior_long <- pivot_longer(modLS_S_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+modLS_S_posterior_long$Parameter <- recode(modLS_S_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept",
+                                            "b_MASQ" = "MASQ", 
+                                            "b_neurotypeNT" = "neurotypeNT",
+                                            "b_EDAQ" = "EDAQ", 
+                                            "b_MASQ:neurotypeNT" = "MASQ:neurotypeNT", 
+                                            "b_neurotypeNT:EDAQ" = "neurotypeNT:EDAQ", 
+                                            "sigma" = "Sigma")
+
+#Extract group information from parameter names:
+modLS_S_posterior_long$Group <- sub(":.*", "", modLS_S_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+modLS_S_posterior_long$Parameter <- factor(modLS_S_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept","MASQ","neurotypeNT","EDAQ","MASQ:neurotypeNT","neurotypeNT:EDAQ","Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+ggplot(modLS_S_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+```
+
+For the second model, loseShift \~ MASQ\*Group + EDAQ\*Group for stable condition only:
+
+-   **Intercept**: This is the estimated baseline value of `loseShift` when all other predictors are zero. Because variables are standardised, the intercept gives the estimated lose-shift behavior for the `NT` group when anxiety is at its mean.Since the estimate is around 0, this suggests that the baseline `loseShift` tendency (before adding effects of anxiety or group differences) is close to the overall mean - the distribution is centered around 0 with narrow HDI.
+
+-   **MASQ, neurotypeNT, and EDAQ**: These represent the effects of `MASQ` and `neurotypeNT` on `loseShift`, respectively. `MASQ` has a distribution centered just below 0, and a narrow HDI - again, because variables are standardised, this means that a one-standard-deviation increase in anxiety (MASQ) is associated with a 0.16 standard deviation decrease in lose-shift behavior. However, HDIs overlapping 0 suggest `MASQ` has no effect on `loseShift`. `neurotypeNT` has a distribution centered just below 0 and fairly broad HDI, which can be interpreted as the difference in lose-shift behavior between NT and ASC groups when `MASQ` = 0 (i.e., at mean anxiety). A negative estimate means that ASC individuals, on average, show less lose-shift behavior than NTs when anxiety is at the mean, however, broad HDIs make this effect unreliable - `neurotypeNT` likely has no meaningful effect on `loseShift`. `EDAQ` has a distribution centered just above 0, and HDI that overlaps 0 - because variables are standardised, this means that a one-standard-deviation increase in PDA behaviours (EDAQ) is associated with a 0.21 standard deviation increase in lose-shift behavior. However, HDIs overlapping 0 make this an unreliable effect - `EDAQ` has no meaningful effect on `loseShift`.
+
+-   **MASQ:neurotypeNT and neurotypeNT:EDAQ**: These are the interaction terms, indicating whether the effect of `MASQ` and `EDAQ` on `loseShift` differs across groups. `MASQ:neurotypeNT` has a distribution centered just above 0, with a wide HDI - a positive estimate means that higher anxiety decreases lose-shift less strongly for NT individuals compared to ASC individuals. However, wide HDIs make this effect unreliable - the effect of `MASQ` on `loseShift` likely does not vary by group. `EDAQ:neurotypeNT` has a distribution centered just below 0, with a wide HDI - a negative estimate means that more PDA behaviours leads to a smaller increase in lose-shift for NT individuals compared to ASC individuals. Once again, wide HDIs make this effect unreliable - the effect of `MASQ` on `loseShift` likely does not vary by group.
+
+-   **Sigma**: This represents the standard deviation of the residuals (the variability not explained by the model). A larger sigma indicates more variability in `lose-shift` that isn’t accounted for by the predictors - here the distribution for sigma is centered around 1 with very narrow HDI - much of the variance in `loseShift` is being captured by the model.
+
+Visualise model-predicted lose-shift values for MASQ and EDA-QA scores by neurotype:
+
+```{r}
+#Read in saved data file:
+data <- read.csv("Data.csv")
+
+#Prepare and standardise variables:
+std_data <- data %>%
+  mutate(
+    EDAQ = standardize(EDAQ),
+    MASQ = standardize(MASQ),
+    loseShift = standardize(loseShift)
+  ) %>%
+  select(subject, EDAQ, MASQ, loseShift, neurotype) %>%
+  distinct()
+
+#Load the model output from a file:
+modLS_S <- readRDS("modLS_S_output.rds")
+
+#Extract conditional effects:
+ce_LS_S <- conditional_effects(modLS_S)
+
+#Convert the specific effect to a data frames:
+ce_LS_S_MASQ <- as.data.frame(ce_LS_S$`MASQ:neurotype`)
+ce_LS_S_EDAQ <- as.data.frame(ce_LS_S$`EDAQ:neurotype`)
+
+#Select relevant columns:
+ce_LS_S_MASQ <- ce_LS_S_MASQ %>% 
+  select(MASQ, neurotype, estimate__, lower__, upper__)
+ce_LS_S_EDAQ <- ce_LS_S_EDAQ %>% 
+  select(EDAQ, neurotype, estimate__, lower__, upper__)
+
+#Plot for MASQ:
+LS_S_plot_masq <- ggplot(ce_LS_S_MASQ, aes(x = MASQ, y = estimate__, color = neurotype)) +
+  geom_point(data = std_data, aes(x = MASQ, y = loseShift, color = neurotype)) +
+  geom_line(aes(y = estimate__),size = 1) +  # Line for estimated effects
+  geom_ribbon(aes(ymin = lower__, ymax = upper__, fill = neurotype), alpha = 0.3, color = NA) +  # Ribbons for uncertainty
+  theme_minimal() +  # Use a minimal theme
+  labs(x = "MASQ (std)",
+       y = "Estimated Effect") +
+  scale_color_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), guide = "none") +
+  scale_fill_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), guide = "none") # Customize colors for groups
+
+#Plot for EDAQ:
+LS_S_plot_edaq <- ggplot(ce_LS_S_EDAQ, aes(x = EDAQ, y = estimate__, color = neurotype)) +
+  geom_point(data = std_data, aes(x = EDAQ, y = loseShift, color = neurotype)) +
+  geom_line(aes(y = estimate__),size = 1) +  # Line for estimated effects
+  geom_ribbon(aes(ymin = lower__, ymax = upper__, fill = neurotype), alpha = 0.3, color = NA) +  # Ribbons for uncertainty
+  theme_minimal() +  # Use a minimal theme
+  labs(x = "EDAQ (std)",
+       y = "") +
+  scale_color_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), name = "Neurotype",  breaks = c("NT", "ASC")) + 
+  scale_fill_manual(values = c("ASC" = "#cc99ff", "NT" = "#66cccc"), name = "Neurotype",  breaks = c("NT", "ASC"))  
+
+#Combine the plots:
+(LS_S_plot_masq + LS_S_plot_edaq) + plot_annotation(title = "Effect Of MASQ And EDAQ Scores On Lose-Shift behaviour In 
+The Stable Condition By Neurotype")
+```
+
+Again, the plots above depict the estimated effect of MASQ and EDA-QA scores on lose-shift behaviours calculated for the stable condition only. For the ASC group, models predict that for both NT and ASC groups, lose-shift behaviours in the stable condition are slightly positively associated with anxiety scores and slightly negatively associated with PDA behaviours. For the ASC group, models predict that for both NT and ASC groups, lose-shift behaviours in the stable condition are negatively associated with anxiety scores and positively associated with PDA behaviours for the ASC group. However, in both instances, both models predict a large amount of variability in parameter estimates, rendering these relationships uncertain.
+
+Taken together with posterior parameter distributions above, it is likely that we do not have enough data to generate reliable model estimates.
+
+# Sensitivity analysis
+
+"A sensitivity analysis explores how changes in assumptions influence inference. If none of the alternative assumptions you consider have much impact on inference, that's worth reporting. Likewise, if the alternatives you consider do have an important impact on inference, that's also worth reporting. The same sort of advice follows for other modeling assumptions: likelihoods, linear models, priors, and even how the model is fit to data" - McElreath (2020).
+
+## Choice congruence
+
+Fit three models that consider different priors for $α$ , $β$, and $σ$ default (the prior we used in our model), narrow, and broad:
+
+```{r}
+#Read in saved data file:
+data <- read.csv("congruence_STABLE.csv")
+
+#Prepare and standardise variables:
+std_data_n <- data %>%
+  mutate(
+    neurotype = factor(neurotype),
+    trialGroup = factor(trial_group),
+    congruence = standardize(congruence)
+  ) %>%
+  select(neurotype, trialGroup, congruence, blockorder) %>%
+  distinct()
+
+#Fit the model with default priors:
+modCC_default <- brm(
+  congruence ~ neurotype:trialGroup,
+  data = std_data_n,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 1), class = "Intercept"),
+    prior(normal(0, 1), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modCC_default_output.rds"
+  )
+
+#Fit the model with narrow priors:
+modCC_narrow <- brm(
+  congruence ~ neurotype:trialGroup,
+  data = std_data_n,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 0.2), class = "Intercept"),
+    prior(normal(0, 0.2), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modCC_narrow_output.rds"
+  )
+
+#Fit the model with broad priors:
+modCC_broad <- brm(
+  congruence ~ neurotype:trialGroup,
+  data = std_data_n,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 2), class = "Intercept"),
+    prior(normal(0, 2), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modCC_broad_output.rds"
+  )
+```
+
+And again for group including PDA:
+
+```{r}
+#Read in saved data file:
+data <- read.csv("congruence_STABLE.csv")
+
+#Prepare and standardise variables:
+std_data_g <- data %>%
+  mutate(
+    group = factor(group),
+    trialGroup = factor(trial_group),
+    congruence = standardize(congruence)
+  ) %>%
+  select(group, trialGroup, congruence, blockorder) %>%
+  distinct()
+
+#Fit the model with default priors:
+modCCP_default <- brm(
+  congruence ~ group:trialGroup,
+  data = std_data_g,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 1), class = "Intercept"),
+    prior(normal(0, 1), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modCCP_default_output.rds"
+  )
+
+#Fit the model with narrow priors:
+modCCP_narrow <- brm(
+  congruence ~ group:trialGroup,
+  data = std_data_g,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 0.2), class = "Intercept"),
+    prior(normal(0, 0.2), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modCCP_narrow_output.rds"
+  )
+
+#Fit the model with broad priors:
+modCCP_broad <- brm(
+  congruence ~ group:trialGroup,
+  data = std_data_g,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 2), class = "Intercept"),
+    prior(normal(0, 2), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modCCP_broad_output.rds"
+  )
+```
+
+We can visualise the output of the above models to compare the impact of differing prior assumptions for each parameter:
+
+```{r}
+#Load models output from files:
+modCC_default <- readRDS("modCC_default_output.rds")
+modCC_narrow <- readRDS("modCC_narrow_output.rds")
+modCC_broad <- readRDS("modCC_broad_output.rds")
+modCCP_default <- readRDS("modCCP_default_output.rds")
+modCCP_narrow <- readRDS("modCCP_narrow_output.rds")
+modCCP_broad <- readRDS("modCCP_broad_output.rds")
+
+#Return model output:
+modelsCC <- list(modCC_default, modCC_narrow, modCC_broad)
+modelsCCP <- list(modCCP_default, modCCP_narrow, modCCP_broad)
+
+#Iterate summary over the models:
+for(i in 1:length(modelsCC)) {
+  # Print model summary
+  print(summary(modelsCC[[i]]))
+}
+for(i in 1:length(modelsCCP)) {
+  # Print model summary
+  print(summary(modelsCCP[[i]]))
+}
+
+#Put models in a list:
+modelsCC <- list(Default = modCC_default, Narrow = modCC_narrow, Broad = modCC_broad)
+modelsCCP <- list(Default = modCCP_default, Narrow = modCCP_narrow, Broad = modCCP_broad)
+
+#Create a data frame to hold coefficients:
+dfCC <- data.frame(Model = character(), Parameters = character(), Estimate = numeric(), SE = numeric())
+dfCCP <- data.frame(Model = character(), Parameters = character(), Estimate = numeric(), SE = numeric())
+
+#Extract coefficients and add to data frame:
+for (model_name in names(modelsCC)) {
+  coefsCC <- fixef(modelsCC[[model_name]])
+  temp_dfCC <- data.frame(Model = model_name, Parameters = rownames(coefsCC), Estimate = coefsCC[, 1], SE = coefsCC[, 2])
+  dfCC <- rbind(dfCC, temp_dfCC)
+}
+for (model_name in names(modelsCCP)) {
+  coefsCCP <- fixef(modelsCCP[[model_name]])
+  temp_dfCCP <- data.frame(Model = model_name, Parameters = rownames(coefsCCP), Estimate = coefsCCP[, 1], SE = coefsCCP[, 2])
+  dfCCP <- rbind(dfCCP, temp_dfCCP)
+}
+
+# Order coefficients by the order they appear in the first model, then reverse the order
+dfCC$Parameters <- factor(dfCC$Parameters, levels = rev(rownames(fixef(modelsCC[[1]]))))
+dfCCP$Parameters <- factor(dfCCP$Parameters, levels = rev(rownames(fixef(modelsCCP[[1]]))))
+
+#Plot using ggplot:
+ggplot(dfCC, aes(x = Estimate, y = Parameters, color = Model)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = Estimate - SE, xmax = Estimate + SE), height = 0.2) +
+  labs(title = "Comparison of Coefficients Across Models", x = "Estimate", y = "Parameters") +
+  scale_color_manual(values = c("Broad" = "#66cccc", "Default" = "#336666", "Narrow" = "#cc99ff")) +
+  theme_minimal()
+ggplot(dfCCP, aes(x = Estimate, y = Parameters, color = Model)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = Estimate - SE, xmax = Estimate + SE), height = 0.2) +
+  labs(title = "Comparison of Coefficients Across Models", x = "Estimate", y = "Parameters") +
+  scale_color_manual(values = c("Broad" = "#66cccc", "Default" = "#336666", "Narrow" = "#cc99ff")) +
+  theme_minimal()
+```
+
+All six models show comparable estimates for each parameter when using broad and default priors. Adopting narrow priors shrinks model estimates toward 0. This can happen when modelling insufficient data - without sufficient data to adequately influence the posterior, narrow priors drag model estimates toward 0. Our models are likely under powered - we knew this - we need more data to better understand the relationship between choice congruence and neurotype/group.
+
+## Lose-shift behaviour
+
+Begin with three models that consider different priors for $α$ , $β$, and $σ$ default (the prior we used in our model), narrow, and broad:
+
+```{r}
+#Read in saved data file:
+data <- read.csv("Data.csv")
+
+#Prepare and standardise variables:
+std_data <- data %>%
+  mutate(
+    EDAQ = standardize(EDAQ),
+    MASQ = standardize(MASQ),
+    loseShift = standardize(loseShift)
+  ) %>%
+  select(subject, EDAQ, MASQ, loseShift, neurotype) %>%
+  distinct()
+
+#Fit the model with default priors:
+modLS_S_default <- brm(
+  loseShift ~ MASQ*neurotype + EDAQ*neurotype,
+  data = std_data,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 1), class = "Intercept"),
+    prior(normal(0, 1), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modLS_S_default_output.rds"
+  )
+
+#Fit the model with narrow priors:
+modLS_S_narrow <- brm(
+  loseShift ~ MASQ*neurotype + EDAQ*neurotype,
+  data = std_data,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 0.2), class = "Intercept"),
+    prior(normal(0, 0.2), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modLS_S_narrow_output.rds"
+  )
+
+#Fit the model with broad priors:
+modLS_S_broad <- brm(
+  loseShift ~ MASQ*neurotype + EDAQ*neurotype,
+  data = std_data,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 2), class = "Intercept"),
+    prior(normal(0, 2), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "modLS_S_broad_output.rds"
+  )
+```
+
+Visualise the output of the above models to compare the impact of differing prior assumptions for each parameter:
+
+```{r}
+#Load models output from files:
+modLS_S_default <- readRDS("modLS_S_default_output.rds")
+modLS_S_narrow <- readRDS("modLS_S_narrow_output.rds")
+modLS_S_broad <- readRDS("modLS_S_broad_output.rds")
+
+#Return model output:
+modelsLS_S <- list(modLS_S_default, modLS_S_narrow, modLS_S_broad)
+
+#Iterate summary over the models:
+for(i in 1:length(modelsLS_S)) {
+  # Print model summary
+  print(summary(modelsLS_S[[i]]))
+}
+
+#Put models in a list:
+modelsLS_S <- list(Default = modLS_S_default, Narrow = modLS_S_narrow, Broad = modLS_S_broad)
+
+#Create a data frame to hold coefficients:
+dfLS_S <- data.frame(Model = character(), Parameters = character(), Estimate = numeric(), SE = numeric())
+
+#Extract coefficients and add to data frame:
+for (model_name in names(modelsLS_S)) {
+  coefsLS_S <- fixef(modelsLS_S[[model_name]])
+  temp_dfLS_S <- data.frame(Model = model_name, Parameters = rownames(coefsLS_S), Estimate = coefsLS_S[, 1], SE = coefsLS_S[, 2])
+  dfLS_S <- rbind(dfLS_S, temp_dfLS_S)
+}
+
+# Order coefficients by the order they appear in the first model, then reverse the order
+dfLS_S$Parameters <- factor(dfLS_S$Parameters, levels = rev(rownames(fixef(modelsLS_S[[1]]))))
+
+#Plot using ggplot:
+ggplot(dfLS_S, aes(x = Estimate, y = Parameters, color = Model)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = Estimate - SE, xmax = Estimate + SE), height = 0.2) +
+  labs(title = "Comparison of Coefficients Across Models", x = "Estimate", y = "Parameters") +
+  scale_color_manual(values = c("Broad" = "#66cccc", "Default" = "#336666", "Narrow" = "#cc99ff")) +
+  theme_minimal()
+```
+
+All three models show comparable estimates for each parameter; we can conclude that our default priors are acceptable to capture our expected range of parameter estimates.
+
+Adopting narrow priors shrinks model estimates toward 0 in some cases (e.g., for interaction parameters). This can happen when modelling insufficient data - without sufficient data to adequately influence the posterior, narrow priors drag model estimates toward 0. Our models are likely under powered.
