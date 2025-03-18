@@ -1,0 +1,1085 @@
+---
+title: "Data processing_probabilistic learning_25.07.24"
+format: html
+editor: visual
+---
+
+# Package installation
+
+```{r}
+#Install packages and libraries:
+packages <- c("groundhog", "tidyr", "INLA", "tidyverse", "plotrix", 
+              "rstatix", "gridExtra", "tidybayes", "modelsummary", 
+              "rstatix", "brms", "coda", "mvtnorm", "devtools", "dagitty", "StanHeaders", 
+              "rstan", "V8", "bayesplot")
+
+#Install packages if not already installed:
+packages_to_install <- packages[!packages %in% installed.packages()]
+if(length(packages_to_install)) install.packages(packages_to_install, dependencies = TRUE)
+
+#If not already installed, install rethinking() separately:
+#install.packages("rethinking", 
+#                 repos=c(cran="https://cloud.r-project.org",
+#                         rethinking="http://xcelab.net/R"))
+
+#Rstan might need a bit of extra attention. If it doesn't install with the above code, remove any existing RStan via:
+remove.packages("rstan")
+if (file.exists(".RData")) file.remove(".RData")
+
+#Set up compiler flags:
+dotR <- file.path(Sys.getenv("HOME"), ".R")
+if (!file.exists(dotR)) dir.create(dotR)
+M <- file.path(dotR, "Makevars")
+if (!file.exists(M)) file.create(M)
+cat("\nCXX17FLAGS=-O3 -march=native -mtune=native -fPIC",
+    "CXX17=g++", # or clang++ but you may need a version postfix
+    file = M, sep = "\n", append = TRUE)
+
+#This code is for the development version of rstan- I've been told that this might function better than the up-to-date version:
+install.packages("StanHeaders", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+install.packages("rstan", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+
+#To verify your installation, you can run the RStan example/test model:
+example(stan_model, package = "rstan", run.dontrun = TRUE)
+```
+
+```{r}
+#Once installed, load libraries using groundhog():
+library(groundhog)
+
+#Specify packages:
+packages <- c("groundhog", "tidyr", "INLA", "tidyverse", "plotrix", 
+              "rstatix", "gridExtra", "tidybayes", "modelsummary", 
+              "rstatix", "brms", "coda", "mvtnorm", "devtools", "dagitty", "StanHeaders", 
+              "rstan", "V8", "bayesplot")
+
+#Load packages:
+groundhog.library(packages, "2024-06-28", tolerate.R.version='4.4.0')
+```
+
+```{r}
+#If that doesn't work, load packages manually:
+library(rstan)
+library(cmdstanr)
+library(devtools)
+library(rethinking) #Add download above
+library(V8)
+library(brms)
+library(tidyverse) 
+library(plotrix)
+library(gridExtra)
+library(tidybayes)
+library(modelsummary)
+library(bayesplot)
+
+#Add downloads above
+library(missForest)
+library(Hmisc)
+library(mice)
+library(VIM)
+library(rms)
+```
+
+# Data preparation
+
+## Load data
+
+```{r}
+#Create a variable containing the merged summary data:
+df_sum_ASC <- bind_rows(read.csv("ASC_summary1.csv"), read.csv("ASC_summary2.csv"))
+df_sum_NT <- bind_rows(read.csv("NT_summary1.csv"), read.csv("NT_summary2.csv"), read.csv("NT_summary3.csv"))
+#df_sum_NT_b <- read.csv("NT_summary_n7.csv")
+
+#Convert subject IDs for NT data to character:
+df_sum_NT$subjectid <- as.character(df_sum_NT$subjectid)
+
+#Merge all summary data:
+df_sum <- bind_rows(df_sum_ASC, df_sum_NT)
+
+#Write summary data to .csv (change name of file as appropriate):
+write.table(df_sum, file="df_sum.csv",sep=",",row.names=F)
+
+#Repeat the process for raw data files, create a variable containing the merged raw data sets:
+df_raw_ASC <- bind_rows(read.csv("ASC_raw1.csv"), read.csv("ASC_raw2.csv"))
+df_raw_NT <- bind_rows(read.csv("NT_raw1.csv"), read.csv("NT_raw2.csv"), read.csv("NT_raw3.csv"))
+
+#Convert ebjectid to character variable:
+df_raw_NT$subject <- as.character(df_raw_NT$subject)
+
+#Merge all data sets together (be sure to keep all raw data in the same order as the summary data):
+df_raw <- bind_rows(df_raw_ASC, df_raw_NT)
+
+#Write merged data to csv (if needed):
+write.table(df_raw, file="df_raw.csv",sep=",",row.names=F)
+```
+
+Load in and inspect structure of summary and raw data frames:
+
+```{r}
+#Load in both summary and raw data frames:
+df_sum <- read.csv("df_sum.csv")
+df_raw <- read.csv("df_raw.csv")
+
+#Check simulated data structure:
+#str(df_sum)
+#str(df_raw)
+```
+
+## Exclusion criteria
+
+Participant IDs and the reasons for their exclusion are listed below.
+
+| Participant ID           | Reason for exclusion                          |
+|--------------------------|-----------------------------------------------|
+| 5c48a0f696d59b000183e158 | Identify as autistic without an ASC diagnosis |
+| 59d40cd1c732930001d8896c | Identify as autistic without an ASC diagnosis |
+| 5f0e0e058a700b10c7ac250f | Identify as autistic without an ASC diagnosis |
+| 657609cb62639efd32068322 | Identify as autistic without an ASC diagnosis |
+| 64d8e4e738368be56871e9f4 | Diagnosed ADHD/asthymia but not ASC           |
+| 60fc21ee8506f0f4a935a648 | Multiple responses to diagnostic questions    |
+| 6529ab7cce64633c2c5cc4a2 | Multiple responses to diagnostic questions    |
+| 5ec6c7286820ac0db0d68a19 | Multiple responses to diagnostic questions    |
+| 65843bd6440e380447994eb0 | Multiple responses to diagnostic questions    |
+| 65e6f6be5f3793094f0fc66d | Multiple responses to diagnostic questions    |
+| 60fd913b3fd4aeea9829cff3 | Multiple responses to diagnostic questions    |
+| 6123c4b8ecb7401856d2c68c | Multiple responses to diagnostic questions    |
+| 5c993969c6d15000019bbc4f | Multiple responses to diagnostic questions    |
+| 63d50bed33ba8cb1b9794938 | Multiple responses to diagnostic questions    |
+| 6167d795d6dd1c505c4e248b | Multiple responses to diagnostic questions    |
+| 5eca63843457af5aa68b8a3b | Multiple responses to diagnostic questions    |
+| 6469dc3806780b7f9bbefc5c | Used ctrl-b to skip demographic questions     |
+| 60009ee6d7db7017e5bbadd1 | Diagnosed dyspraxic but not ASC               |
+| 651eb3bc379e71c4df3b95a7 | Multiple responses to diagnostic questions    |
+| 295418907                | Identify as autistic without an ASC diagnosis |
+| 843511072                | Identify as autistic without an ASC diagnosis |
+| 65539                    | Identify as autistic without an ASC diagnosis |
+| 64987                    | Identify as autistic without an ASC diagnosis |
+| 798730588                | RT data but no questionnaire data             |
+| 803522594                | RT data but no questionnaire data             |
+| 307518258                | RT data but no questionnaire data             |
+| 5f50533d0690041c76ca6097 | RT data but no questionnaire data             |
+| 866300491                | Incomplete RT data                            |
+| 556801474                | Incomplete RT data                            |
+
+Create a variable containing excluded participant IDs:
+
+```{r}
+#Create a vector of subject IDs to exclude:
+excluded_subjects <- c("5c48a0f696d59b000183e158", "59d40cd1c732930001d8896c", "5f0e0e058a700b10c7ac250f","657609cb62639efd32068322", "64d8e4e738368be56871e9f4", "60fc21ee8506f0f4a935a648", "6529ab7cce64633c2c5cc4a2", "5ec6c7286820ac0db0d68a19", "65843bd6440e380447994eb0", "65e6f6be5f3793094f0fc66d", "60fd913b3fd4aeea9829cff3", "6123c4b8ecb7401856d2c68c", "5c993969c6d15000019bbc4f", "63d50bed33ba8cb1b9794938", "6167d795d6dd1c505c4e248b", "6469dc3806780b7f9bbefc5c", "60009ee6d7db7017e5bbadd1", "651eb3bc379e71c4df3b95a7", "5eca63843457af5aa68b8a3b", "6266d1937cec5e7a57883e76", "5f50533d0690041c76ca6097", "65539", "64987", "295418907", "843511072", "798730588", "803522594", "307518258", "866300491", "556801474")
+
+length(excluded_subjects)
+```
+
+Remove excluded participant IDs from both raw and summary data frames:
+
+```{r}
+#Then subset to exclude desired subject IDs:
+df_sum <- subset(df_sum, !(subjectid %in% excluded_subjects))
+df_raw <- subset(df_raw, !(subject %in% excluded_subjects))
+```
+
+Check that both data frames match by comparing participant IDs:
+
+```{r}
+#First check the number of unique IDs in each data frame:
+length(unique(df_raw$subject))
+length(unique(df_sum$subjectid))
+
+#Check that both data frames contain the same unique IDs:
+setdiff(df_raw$subject, df_sum$subjectid)
+```
+
+# Questionnaire data
+
+Seemingly a technical error during data collection, three participants were allocated the participant ID 1 and two the ID 64720. This was confirmed by manually inspecting the data and finding unique date, time, and questionnaire values for each of these participants. We reasoned that if the same person repeated the study multiple times that they would have similar questionnaire values and thus these duplicate IDs were likely a technical error. Extract subjects with the same subject ID and find unique dates (these were found by visual inspection) and allocate them unique participant IDs:
+
+```{r}
+#Extract subjects with the same subject value using dates:
+sub1_df_Q <- subset(df_sum, subjectid == "1")
+#date == "2024-04-13"/"13/04/2024"
+#date == "2024-04-12"/"12/04/2024"
+#date == "2024-03-28"/"28/03/2024"
+
+sub64720_df_Q  <- subset(df_sum, subjectid == "64720") 
+#date == "2024-03-06"
+#date == "2024-03-11"
+
+#Replace old (same) subject ID with new unique ID:
+sub1_df_Q <- sub1_df_Q %>%
+  mutate(subjectid = case_when(
+    startdate == "2024-04-13" ~ "7623557_d",
+    startdate == "2024-04-12" ~ "3383977_d",
+    startdate == "2024-03-28" ~ "8859690_d",
+    TRUE ~ subjectid
+  ))
+
+sub64720_df_Q  <- sub64720_df_Q %>%
+  mutate(subjectid = case_when(
+    startdate == "2024-03-06" ~ "2366710_d",
+    startdate == "2024-03-11" ~ "4045297_d",
+    TRUE ~ subjectid
+  ))
+
+#Replace data in df_sum:
+df_sum <- df_sum %>%
+  filter(!(subjectid %in% c("1", "64720")))
+
+#Then add sub1 and sub64720:
+df_sum <- bind_rows(df_sum, sub1_df_Q, sub64720_df_Q)
+```
+
+Remove any incomplete questionnaire data. We do this by selecting only data sets that include AQ scores above 0. Manual visual inspection of these data sets confirms that all data sets with AQ scores equal to 0 are incomplete (i.e., participants exited the study before attempting to complete any of the questionnaires). Also, make sure that after filtering, there are no duplicate subject IDs:
+
+```{r}
+#Extract only participants with a total AQ score > 0:
+df_sum <- df_sum %>%  filter(AQ != 0)
+
+#Also, check that there are no duplicates:
+df_sum[duplicated(df_sum$subjectid), ]
+
+#Alternatively, return the total number of unique subject IDs:
+length(unique(df_sum$subjectid))
+```
+
+Inspect age and gender information:
+
+```{r}
+#Return age and gender stats:
+mean(df_sum$Age)
+sd(df_sum$Age)
+range(df_sum$Age)
+table(df_sum$Gender)
+table(df_sum$ASCdiag)
+```
+
+## Questionnaire scoring
+
+Beginning with AQ scores, dummy code all AQ responses (inc. items that require reverse scoring); items score 1 point for definitely or slightly agree:
+
+```{r}
+#Dummy code all AQ responses (inc. items that require reverse scoring);
+#items score 1 point for definitely or slightly agree:
+AQ_forward <- c("AQ2", "AQ4", "AQ5", "AQ6", "AQ7", "AQ9", "AQ12", 
+                "AQ13", "AQ16", "AQ18", "AQ19", "AQ20", "AQ21", "AQ22", 
+                "AQ23", "AQ26", "AQ33", "AQ35", "AQ39", "AQ41", "AQ42", 
+                "AQ43", "AQ45", "AQ46")
+
+df_sum[, AQ_forward] <- ifelse(df_sum[, AQ_forward] == "Definitely Agree", 1 , 
+                               ifelse(df_sum[, AQ_forward] == "Slightly Agree", 1,
+                                      ifelse(df_sum[, AQ_forward] == "Definitely Disagree", 0 , ifelse(df_sum[, AQ_forward] == "Slightly Disagree", 0, NA))))
+
+#Reverse scores:
+AQ_reverse <- c("AQ1", "AQ3", "AQ8", "AQ10", "AQ11", "AQ14", "AQ15", 
+                "AQ17", "AQ24", "AQ25", "AQ27", "AQ28", "AQ29", "AQ30", 
+                "AQ31", "AQ32", "AQ34", "AQ36", "AQ37", "AQ38", "AQ40",
+                "AQ44", "AQ47", "AQ48", "AQ49", "AQ50")
+
+df_sum[, AQ_reverse] <- ifelse((df_sum[, AQ_reverse]) == "Definitely Disagree", 1 ,
+                               ifelse((df_sum[, AQ_reverse]) == "Slightly Disagree", 1, ifelse((df_sum[, AQ_reverse]) == "Definitely Agree", 0 ,
+                               ifelse((df_sum[, AQ_reverse]) == "Slightly Agree", 0, NA))))
+```
+
+And for EDA-QA scores, dummy code all EDA-QA responses (inc. items that require reverse scoring; EDAQ_14, EDAQ_20); items score 3 points for 'Very true', 2 points for 'Mostly true', 1 point for 'Somewhat true', and 0 points for 'Not true':
+
+```{r}
+#Dummy code all EDA-QA responses (inc. items that require reverse scoring; EDAQ_14, EDAQ_20);
+#items score 3 points for 'Very true', 2 points for 'Mostly true', 1 point for 'Somewhat true', and 0 points for 
+#'Not true':
+EDAQ_forward <- c("EDAQ1", "EDAQ2", "EDAQ3", "EDAQ4","EDAQ5", "EDAQ6", "EDAQ7", "EDAQ8", "EDAQ9", "EDAQ10", "EDAQ11", 
+                  "EDAQ12", "EDAQ13", "EDAQ15", "EDAQ16", "EDAQ17", "EDAQ18", "EDAQ19", "EDAQ21", "EDAQ22", "EDAQ23", 
+                  "EDAQ24", "EDAQ25", "EDAQ26")
+
+df_sum[, EDAQ_forward] <- ifelse((df_sum[,EDAQ_forward]) == "Very True", 3 , 
+                                 ifelse((df_sum[, EDAQ_forward]) == "Mostly True", 2,
+                                        ifelse((df_sum[, EDAQ_forward]) == "Somewhat True", 1, ifelse((df_sum[, EDAQ_forward]) == "Not True", 0, NA))))
+
+#Reverse scores:
+EDAQ_reverse <- c("EDAQ14", "EDAQ20")
+df_sum[, EDAQ_reverse] <- ifelse((df_sum[, EDAQ_reverse]) == "Very True", 0 , 
+                                 ifelse((df_sum[, EDAQ_reverse]) == "Mostly True", 1,
+                                        ifelse((df_sum[, EDAQ_reverse]) == "Somewhat True", 2, ifelse((df_sum[, EDAQ_forward]) == "Not True", 3, NA))))
+```
+
+## Multiple imputation analysis (MIA)
+
+Imputation of missing questionnaire data is performed under the assumption that missing values are missing at random (Schafer & Graham, 2002). Multiple imputations are generated using Multivariate Imputation by Chained Equations (MICE); 5 datasets are imputed using 50 iterations and randomly generated seeds. Analyses run on each dataset are pooled according to Rubin's (1987) rules.
+
+mice() needs a clean data frame containing only the variables relevant to the MIA (i.e., no participant IDs, etc.). Begin by extracting the necessary columns:
+
+```{r}
+#Extract relevant data columns:
+df_MIA <- df_sum[, grepl("^AQ|^EDA", names(df_sum))]
+
+#And remove total AQ and EDA-Q scores (we'll recalculate these after imputation):
+df_MIA <- df_MIA[, !colnames(df_MIA) %in% c("AQ", "EDAQ")]
+```
+
+Inspect the data frame, df_MIA, and its missing values:
+
+```{r}
+#Inspect cases with missing values:
+df_MIA[!complete.cases(df_MIA), ]
+#There are _ missing values (from _ participants), seemingly missing at random.
+
+#Check which columns have missing values:
+sapply(df_MIA, function(x)any(is.na(x)))
+#_, all have missing values.
+
+#We can also view the amount of missing data per column/variable, in this case, per question:
+sapply(df_MIA, function(x) sum(is.na(x)))
+
+#And calculate the percentage of missing data:
+AQ_data <- df_MIA[, grepl("^AQ", names(df_MIA))]
+EDAQ_data <- df_MIA[, grepl("^EDAQ", names(df_MIA))]
+
+(sum(is.na(EDAQ_data)) / prod(dim(EDAQ_data))) * 100
+```
+
+Impute missing values for AQ items:
+
+```{r}
+#Impute missing values for the AQ:
+imp_AQ <- mice(df_MIA[, startsWith(colnames(df_MIA), "AQ")], m=5, maxit = 50, method = 'pmm', seed = 500)
+# m: the number of imputations made per missing observation 
+#    (5 is normal–generates 5 data sets with imputed/original values)
+# maxit: the number of iterations?
+# method: We use ’probable means ?? 
+# seed: Values to randomly generate from??
+
+summary(imp_AQ)
+
+#stripplot(imp_AQ, pch = 20, cex = 1.2)
+
+#Pool means and std according to Rubin's (1987) rules:
+#Stack imputed datasets in long format, exclude the original data
+imp_AQpool <- complete(imp_AQ,action="long",include = FALSE)
+
+# Add imputed data back to original data:
+df_MIA[, startsWith(colnames(df_MIA), "AQ")] <- complete(imp_AQ, mean(1,2,3,4,5,6))
+head(imp_AQ)
+```
+
+Impute missing values for EDAQ-QA items:
+
+```{r}
+# Now repeat the process for the EDAQ, start by imputing missing values:
+imp_EDAQ <- mice(df_MIA[, startsWith(colnames(df_MIA), "EDAQ")], m=5, maxit = 50, method = 'pmm', seed = 500)
+# m: the number of imputations made per missing observation 
+#    (5 is normal–generates 5 data sets with imputed/original values)
+# maxit: the number of iterations?
+# method: We use ’probable means ?? 
+# seed: Values to randomly generate from??
+
+summary(imp_EDAQ)
+
+#stripplot(imp_EDAQ, pch = 20, cex = 1.2)
+
+#Pool means and std according to Rubin's (1987) rules:
+#Stack imputed datasets in long format, exclude the original data
+imp_EDAQpool <- complete(imp_EDAQ,action="long",include = FALSE)
+
+# Add imputed data back to original data:
+df_MIA[, startsWith(colnames(df_MIA), "EDAQ")] <- complete(imp_EDAQ, mean(1,2,3,4,5,6))
+head(imp_EDAQ)
+```
+
+Finally, check that MIA worked effectively by returning any withstanding missing values:
+
+```{r}
+#Check that the imputation worked by viewing the amount of missing data per column/variable:
+sapply(df_MIA, function(x) sum(is.na(x)))
+```
+
+If MIA worked, the above code should return 0 for each item. If so, save the output:
+
+```{r}
+#Save complete data set to .csv:
+write.table(df_MIA, file="df_MIA.csv",sep=",",row.names=F)
+```
+
+## Calculate questionnaire scores
+
+Begin by summing AQ and EDA-QA scores to derive total scores for each metric:
+
+```{r}
+#Load post-MIA data frame:
+df_MIA <- read.csv("df_MIA.csv") 
+
+#Start with AQ scores:
+df_MIA$AQ <- rowSums(df_MIA[, startsWith(colnames(df_MIA), "AQ")])
+
+#Do the same for EDA-QA scores:
+df_MIA$EDAQ <- rowSums(df_MIA[, startsWith(colnames(df_MIA), "EDA")])
+```
+
+We do not need individual questionnaire item values for our analysis, extract total scores and save to a new data frame:
+
+```{r}
+#Collect varaibles of interest:
+df_Q <- df_MIA[c("AQ", "EDAQ")]
+```
+
+## Demographic information
+
+Add participant IDs and diagnostic information to the data frame, df_Q:
+
+```{r}
+#Add Prolific IDs and dates:
+df_Q$subject <- df_sum$subjectid
+df_Q$date <- df_sum$startdate
+df_Q$time <- df_sum$starttime
+
+#Create a new column called dummy_code based on ASCdiag
+df_Q$diagnosis <- ifelse(df_sum$ASCdiag == "Yes", "ASC", "NT")
+df_Q$diagnosis[is.na(df_Q$diagnosis)] <- "NT"
+
+#Add age and gender:
+df_Q$age <- df_sum$Age
+df_Q$gender <- df_sum$Gender
+
+#Check demographics:
+df_Q %>%
+  dplyr::group_by(diagnosis) %>%
+  dplyr::summarize(
+    mean_EDAQ = mean(EDAQ, na.rm = TRUE),
+    sd_EDAQ = sd(EDAQ, na.rm = TRUE),
+    mean_age = mean(age, na.rm = TRUE),
+    sd_age = sd(age, na.rm = TRUE),
+    min_age = min(age, na.rm = TRUE),
+    max_age = max(age, na.rm = TRUE),
+    male = sum(gender == "Male", na.rm = TRUE),
+    female = sum(gender == "Female", na.rm = TRUE),
+    other = sum(gender == "Other", na.rm = TRUE)
+  )
+
+#Calculate the cutoff for the top 33% of EDAQ scores:
+edaq_cutoff <- quantile(df_Q$EDAQ, 0.67)
+
+#Create a new variable based on the cutoff and diagnosis where 1=ASC, 2=NT, and 3=PDA
+df_Q <- df_Q %>%
+  mutate(group = ifelse(EDAQ >= edaq_cutoff, "PDA", ifelse(diagnosis == "ASC", "ASC", "NT")))
+
+df_Q %>%
+  dplyr::group_by(group) %>%
+  dplyr::summarize(
+    mean_EDAQ = mean(EDAQ, na.rm = TRUE),
+    sd_EDAQ = sd(EDAQ, na.rm = TRUE),
+    mean_age = mean(age, na.rm = TRUE),
+    sd_age = sd(age, na.rm = TRUE),
+    min_age = min(age, na.rm = TRUE),
+    max_age = max(age, na.rm = TRUE),
+    male = sum(gender == "Male", na.rm = TRUE),
+    female = sum(gender == "Female", na.rm = TRUE),
+    other = sum(gender == "Other", na.rm = TRUE)
+  )
+```
+
+Finally, write the processed questionnaire data to .csv:
+
+```{r}
+#Write data to .csv:
+write.table(df_Q, file="Questionnaire_Data.csv",sep=",",row.names=F)
+```
+
+# RT data
+
+Load RT data from raw Inquisit .csv:
+
+```{r}
+#Load RT data:
+df_R <- df_raw
+```
+
+Once again, extract subjects with the same subject ID using unique dates (these were found by visual inspection) and allocate them unique participant IDs:
+
+```{r}
+#Extract subjects with the same subject value and find unique dates:
+sub1_df_R <- subset(df_R, subject == "1")
+#date == "2024-04-13"
+#date == "2024-04-12"
+#date == "2024-03-28"
+
+sub64720_df_R  <- subset(df_R, subject == "64720") 
+#date == "2024-03-06"
+#date == "2024-03-11"
+
+#Replace old (same) subject ID with new unique ID:
+sub1_df_R <- sub1_df_R %>%
+  mutate(subject = case_when(
+    date == "2024-04-13" ~ "7623557_d",
+    date == "2024-04-12" ~ "3383977_d",
+    date == "2024-03-28" ~ "8859690_d",
+    TRUE ~ subject
+  ))
+
+sub64720_df_R  <- sub64720_df_R %>%
+  mutate(subject = case_when(
+    date == "2024-03-06" ~ "2366710_d",
+    date == "2024-03-11" ~ "4045297_d",
+    TRUE ~ subject
+  ))
+
+#Replace data in df_R by removing subjects with value 1 (and, if necessary, 64720):
+df_R <- df_R %>%
+  filter(!(subject %in% c("1", "64720")))
+
+#Then add sub1 (and, if necessary, sub64720):
+df_R <- bind_rows(df_R, sub1_df_R, sub64720_df_R)
+```
+
+Extract from the RT data only the participants who returned complete questionnaire data. To do this, load the processed questionnaire data:
+
+```{r}
+#Read in questionnaire data:
+df_Q <- read.csv("Questionnaire_Data.csv")
+df_Q
+```
+
+Use time, date, and subject ID to filter and match participant RT and questionnaire data:
+
+```{r}
+#Filter df_R using df_Q:
+df_R <- semi_join(df_R, df_Q, by = c("time", "date", "subject"))
+
+#Then check the number of unique IDs in each data frame:
+length(unique(df_R$subject))
+length(unique(df_Q$subject))
+
+#Check that both data frames contain the same unique IDs - this should return character(0) if all values are equal:
+setdiff(df_R$subject, df_Q$subject)
+```
+
+Filter variables of interest:
+
+```{r}
+#Collect varaibles of interest:
+df_R <- df_R[c("subject", "trialnum","blockcode","trialcode","response", "correct", "latency")]
+```
+
+## Further exclusion criteria
+
+Filter and remove trials coded as 'break' and trials with latency \<100ms - we assume RTs \<100ms are too quick to be represent a meaningful response:
+
+```{r}
+#Check how many trialcode= break there are and remove them:
+length(df_R[df_R == 'Break']) #There are 3268 breaks in the data set.
+
+#Remove breaks:
+df_R[df_R == 'Break'] <- NA
+df_R <- df_R[complete.cases(df_R),]
+
+#Check how many trials are <100MS and remove:
+nrow(df_R %>%  filter(latency < 100)) #There are 665 trials in the data set that are <100MS.
+
+#Remove latency > 100:
+df_R <- df_R %>%  filter(latency > 100)
+```
+
+Create a function that will return d' - we will use d'\<2 as a cutoff for acceptable accuracy:
+
+```{r}
+#Create a function that will return dprime:
+fn_score <- function(df_R) {
+  n_hit <- sum(df_R$trialcode %in%  c("target_Trial_rec", "target_Trial_tri") & df_R$correct == 1)
+  n_miss <- sum(df_R$trialcode %in%  c("target_Trial_rec", "target_Trial_tri") & df_R$correct == 0)
+  n_cr <- sum(df_R$trialcode %in%  c("invalid_Trial_rec", "invalid_Trial_tri") & df_R$correct == 1)
+  n_fa <- sum(df_R$trialcode %in%  c("invalid_Trial_rec", "invalid_Trial_tri") & df_R$correct == 0)
+  p_hit <- (n_hit + 0.5) / ((n_hit + 0.5) + n_miss + 1)
+  p_fa <- (n_fa + 0.5) / ((n_fa + 0.5) + n_cr + 1)   
+  return (qnorm(p_hit) - qnorm(p_fa))
+}
+
+#Now return individual dprime for each participant sub-setting by subject ID:
+p_n <- (unique(df_R$subject))
+dprime <- numeric()
+dprime_df <- data.frame()
+
+for (i in p_n) { 
+  # Subset the dataframe by id:
+  subset_d <- subset(df_R, subject == i)
+  
+  # Calculate dprime for each id
+  dprime_value <- fn_score(subset_d)
+  
+  # Get the corresponding unique subject:
+  subject_value <- unique(subset_d$subject)
+  
+  # Combine id, dprime and subject into a dataframe:
+  temp_df <- data.frame(subject = subject_value, dprime = dprime_value)
+  
+  # Append the temp_df to the dprime_df:
+  dprime_df <- rbind(dprime_df, temp_df)
+}
+```
+
+We are only interested in correct target trials for our analysis, so extract correct target trials from the data:
+
+```{r}
+#Extract all correct target trials:
+df_R <- filter(df_R, grepl("^target*", trialcode))
+df_R <- filter(df_R, correct == 1)
+```
+
+Execute \<d' exclusion criteria:
+
+```{r}
+#Add d's:
+df_R <- merge(df_R, dprime_df, by = "subject")
+
+df_R[df_R$dprime >= 2,]
+
+#Remove any participant with a dprime<2:
+df_R <- df_R[df_R$dprime >= 2, , drop = FALSE]
+
+#Check that worked (lowest value should be >2):
+range(df_R$dprime)
+```
+
+We also want to extract blocks of interest (i.e., blocks 1-4) removing things like consent information and practice blocks:
+
+```{r}
+#Extract only values of blockcode that begin with "block":
+df_R <- df_R[grepl("^block", df_R$blockcode), ]
+```
+
+## Demographic information
+
+Add demographic information from df_Q to df_R and create a PDA group based on the top 33% of EDA-QA scores:
+
+```{r}
+#Add diagnosis, age, gender, AQ, and EDA-QA scores from df_Q:
+df_R <- left_join(df_R, df_Q[, c("subject", "age", "gender", "diagnosis", "AQ", "EDAQ")], by = "subject")
+
+#Create a PDA group using the top 33% of EDA-QA scores.
+
+#Calculate the cutoff for the top 33% of EDAQ scores:
+edaq_cutoff <- quantile(df_R$EDAQ, 0.67)
+
+#Create a new variable based on the cutoff and diagnosis where 1=ASC, 2=NT, and 3=PDA
+df_R <- df_R %>%
+  mutate(group = ifelse(EDAQ >= edaq_cutoff, "PDA", ifelse(diagnosis == "ASC", "ASC", "NT")))
+
+#Check that worked:
+sum(df_R$group == "PDA")
+sum(df_R$group == "ASC")
+sum(df_R$group == "NT")
+```
+
+Finally, write to .csv:
+
+```{r}
+#Write data to .csv:
+write.table(df_R, file="RT_Data.csv",sep=",",row.names=F)
+
+df_R <- read.csv("RT_Data.csv")
+```
+
+## Calculating median RTs by block
+
+Pivot data frame to wide format:
+
+```{r}
+#Create data set with block numbers as column headers:
+dfl <- df_R[c("subject", "trialnum", "blockcode", "latency", "diagnosis", "group", "AQ", "EDAQ", "age", "gender", "dprime")] 
+dfw <- dfl %>%
+  pivot_wider( 
+    names_from = 'blockcode', 
+    values_from = 'latency',
+    values_fn = list(latency = first)  #Keep the first value for each combination
+  )
+```
+
+Separate data by block and calculate block medians:
+
+```{r}
+#Extract full data (no NAs) by block, preserving ID numbers: 
+block1 <- dfw[, c("subject", "block1")]
+block1 <- block1[complete.cases(block1),]
+
+block2 <- dfw[, c("subject", "block2")]
+block2 <- block2[complete.cases(block2),]
+
+block3 <- dfw[, c("subject", "block3")]
+block3 <- block3[complete.cases(block3),]
+
+block4 <- dfw[, c("subject", "block4")]
+block4 <- block4[complete.cases(block4),]
+
+#convert block variables to numeric:
+block1 <- transform(block1, rt = as.numeric(block1))
+block2 <- transform(block2, rt = as.numeric(block2))
+block3 <- transform(block3, rt = as.numeric(block3))
+block4 <- transform(block4, rt = as.numeric(block4))
+
+#Calculate median RTs by subject_id for each data frame:
+block1_medians <- block1 %>% group_by(subject) %>% summarise(v100 = median(rt, na.rm = TRUE))
+block2_medians <- block2 %>% group_by(subject) %>% summarise(v84 = median(rt, na.rm = TRUE))
+block3_medians <- block3 %>% group_by(subject) %>% summarise(v67 = median(rt, na.rm = TRUE))
+block4_medians <- block4 %>% group_by(subject) %>% summarise(v33 = median(rt, na.rm = TRUE))
+
+#Merge the median data frames:
+block_medians <- merge(block1_medians, block2_medians, by = "subject", all.x = TRUE)
+block_medians <- merge(block_medians, block3_medians, by = "subject", all.x = TRUE)
+block_medians <- merge(block_medians, block4_medians, by = "subject", all.x = TRUE)
+
+#Merge diagnostic info, create a data frame with the first occurrence of each subject:
+subject_info <- dfw %>%
+  group_by(subject) %>%
+  slice_min(order_by = row_number(), n = 1)
+
+#Merge block_medians with subject_info:
+block_medians <- left_join(block_medians, subject_info[, c("subject", "diagnosis", "group", "AQ", "EDAQ", "age", "gender")], by = "subject")
+```
+
+## Calculate Insensitivity Indices
+
+Calculate intercepts and slopes for each participant based on 33%, 67%, and 84% probability conditions (for more details, see Reisli et al., 2023):
+
+```{r}
+#Calculate slopes for each participant:
+p_n_ <- unique(block_medians$subject)
+rts <- block_medians[3:5]
+block <- c(84, 67, 33)
+
+#Add empty columns for intercepts and slopes to block_medians:
+#block_medians$intercept <- NA    #This step isn't necessary, but can be executed if desired
+block_medians$II <- NA
+
+#Calculate and insert intercepts and slopes:
+for (i in p_n_) {
+  rts_i <- rts[block_medians$subject == i, ]
+  
+  if (nrow(rts_i) > 0) {
+    fit <- lm(unlist(rts_i) ~ block)
+    intercept <- fit$coeff[[1]]
+    slope <- fit$coeff[[2]]
+    
+    # Add the (intercept and) slope to block_medians
+    #block_medians$intercept[block_medians$subject == i] <- intercept   #This step isn't necessary, but can be executed if desired
+    block_medians$II[block_medians$subject == i] <- slope
+  }
+}
+```
+
+## Review probability slope data
+
+Execute \<d' exclusion criteria:
+
+```{r}
+#Add d' to block_medians:
+block_medians <- merge(block_medians, dprime_df, by = "subject")
+
+#How many participants had a d' <2 for each group?
+dprime_ASC <- block_medians[block_medians$diagnosis == "ASC",]
+dprime_NT <- block_medians[block_medians$diagnosis == "NT",]
+nrow(dprime_ASC[dprime_ASC$dprime <= 2, ,]) #n=9
+nrow(dprime_NT[dprime_NT$dprime <= 2, ,])   #n=7
+
+#Check that worked (lowest value should be >2):
+range(block_medians$dprime)
+```
+
+Review processed data:
+
+```{r}
+#Check number of data sets for analysis:
+nrow(block_medians)
+
+#Check number of data sets for analysis by group (NT/ASC):
+sum(block_medians$diagnosis == "NT") #n=72
+sum(block_medians$diagnosis == "ASC") #n=84
+
+#Print block_medians:
+print(block_medians)
+```
+
+Final demographic check - this will be the participant characteristics for analysis:
+
+```{r}
+#Check demographics by group:
+block_medians %>%
+  dplyr::group_by(group) %>%
+  dplyr::summarize(
+    mean_EDAQ = mean(EDAQ, na.rm = TRUE),
+    sd_EDAQ = sd(EDAQ, na.rm = TRUE),
+    mean_AQ = mean(AQ, na.rm = TRUE),
+    sd_AQ = sd(AQ, na.rm = TRUE),
+    mean_age = mean(age, na.rm = TRUE),
+    sd_age = sd(age, na.rm = TRUE),
+    min_age = min(age, na.rm = TRUE),
+    max_age = max(age, na.rm = TRUE),
+    male = sum(gender == "Male", na.rm = TRUE),
+    female = sum(gender == "Female", na.rm = TRUE),
+    Other = sum(gender == "Other", na.rm = TRUE)
+  )
+
+#And again by neurotype:
+block_medians %>%
+  dplyr::group_by(diagnosis) %>%
+  dplyr::summarize(
+    mean_EDAQ = mean(EDAQ, na.rm = TRUE),
+    sd_EDAQ = sd(EDAQ, na.rm = TRUE),
+    mean_AQ = mean(AQ, na.rm = TRUE),
+    sd_AQ = sd(AQ, na.rm = TRUE),
+    mean_age = mean(age, na.rm = TRUE),
+    sd_age = sd(age, na.rm = TRUE),
+    min_age = min(age, na.rm = TRUE),
+    max_age = max(age, na.rm = TRUE),
+    male = sum(gender == "Male", na.rm = TRUE),
+    female = sum(gender == "Female", na.rm = TRUE),
+    Other = sum(gender == "Other", na.rm = TRUE)
+  )
+```
+
+Finally, save data to .csv:
+
+```{r}
+#Write to csv for analysis:
+write.table(block_medians, file="BlockMedians.csv",sep=",",row.names=F)
+```
+
+# Trial type data
+
+We will explore RTs for target trials that were preceded by target and distractor trials for each probability condition separately for each group (PDA, ASC, and NT):
+
+```{r}
+#Load data:
+df_T <- df_raw
+```
+
+Once again, extract subjects with the same subject ID using unique dates (these were found by visual inspection) and allocate them unique participant IDs:
+
+```{r}
+#Extract subjects with the same subject value and find unique dates:
+sub1_df_R <- subset(df_T, subject == "1")
+#date == "2024-04-13"
+#date == "2024-04-12"
+#date == "2024-03-28"
+
+sub64720_df_R  <- subset(df_T, subject == "64720") 
+#date == "2024-03-06"
+#date == "2024-03-11"
+
+#Replace old (same) subject ID with new unique ID:
+sub1_df_R <- sub1_df_R %>%
+  mutate(subject = case_when(
+    date == "2024-04-13" ~ "7623557_d",
+    date == "2024-04-12" ~ "3383977_d",
+    date == "2024-03-28" ~ "8859690_d",
+    TRUE ~ subject
+  ))
+
+sub64720_df_R  <- sub64720_df_R %>%
+  mutate(subject = case_when(
+    date == "2024-03-06" ~ "2366710_d",
+    date == "2024-03-11" ~ "4045297_d",
+    TRUE ~ subject
+  ))
+
+#Replace data in df_T by removing subjects with value 1 (and, if necessary, 64720):
+df_T <- df_T %>%
+  filter(!(subject %in% c("1", "64720")))
+
+#Then add sub1 (and, if necessary, sub64720):
+df_T <- bind_rows(df_T, sub1_df_R, sub64720_df_R)
+```
+
+Extract from the RT data only the participants who returned complete questionnaire data. To do this, load the processed questionnaire data:
+
+```{r}
+#Read in questionnaire data:
+df_Q <- read.csv("Questionnaire_Data.csv")
+df_Q
+```
+
+Use time, date, and subject ID to filter and match participant RT and questionnaire data:
+
+```{r}
+#Filter df_T using df_Q:
+df_T <- semi_join(df_T, df_Q, by = c("time", "date", "subject"))
+
+#Then check the number of unique IDs in each data frame:
+length(unique(df_T$subject))
+length(unique(df_Q$subject))
+
+#Check that both data frames contain the same unique IDs - this should return character(0) if all values are equal:
+setdiff(df_T$subject, df_Q$subject)
+```
+
+Filter variables of interest:
+
+```{r}
+#Collect varaibles of interest:
+df_T <- df_T[c("subject", "trialnum","blockcode","trialcode","response", "correct", "latency")]
+
+#remove trialcode= break
+df_T[df_T == 'Break'] <- NA
+df_T <- df_T[complete.cases(df_T),]
+```
+
+Add demographic information from df_Q to df_R and create a PDA group based on the top 33% of EDA-QA scores:
+
+```{r}
+#Add diagnosis, AQ, and EDA-QA scores from df_Q:
+df_T <- left_join(df_T, df_Q[, c("subject", "diagnosis", "AQ", "EDAQ")], by = "subject")
+
+#Create a PDA group using the top 33% of EDA-QA scores.
+
+#Calculate the cutoff for the top 33% of EDAQ scores:
+edaq_cutoff <- quantile(df_T$EDAQ, 0.67)
+
+#Create a new variable based on the cutoff and diagnosis where 1=ASC, 2=NT, and 3=PDA
+df_T <- df_T %>%
+  mutate(group = ifelse(EDAQ >= edaq_cutoff, "PDA", ifelse(diagnosis == "ASC", "ASC", "NT")))
+
+#Check that worked:
+sum(df_T$group == "PDA")
+sum(df_T$group == "ASC")
+sum(df_T$group == "NT")
+```
+
+## Add trial type
+
+Create a new column to hold trial type - a variable that denotes whether a trial was preceded by a target (e.g., triangle preceded by a triangle) or distracter trial (e.g., triangle preceded by a rectangle):
+
+```{r}
+#Add a variable that labels target trials as either being preceded by a target trial, tt (target-target) or an invalid 
+#trial, it (invalid-target):
+df_T <- df_T %>%
+  mutate(prev_trial_type = lag(trialcode))
+
+#Create a new column "type" based on the conditions:
+df_T <- df_T %>%
+  mutate(type = case_when(
+    startsWith(trialcode, "target") & startsWith(prev_trial_type, "target") ~ "TT",
+    startsWith(trialcode, "target") & startsWith(prev_trial_type, "invalid") ~ "DT",
+    TRUE ~ NA_character_
+  ))
+```
+
+## Further exclusion criteria
+
+Remove RTs \<100ms and extract target trials:
+
+```{r}
+#Remove trials <100MS:
+df_T <- df_T %>%  filter(latency > 100)
+
+#Extract all correct target trials:
+df_T <- filter(df_T, grepl("^target*", trialcode))
+df_T <- filter(df_T, correct == 1)
+```
+
+Execute \<d' exclusion criteria:
+
+```{r}
+#Add d' to block_medians:
+df_T <- merge(df_T, dprime_df, by = "subject")
+
+#Remove any participant with a dprime<2:
+df_T <- df_T[df_T$dprime >= 2, , drop = FALSE]
+
+#Check that worked (lowest value should be >2):
+range(df_T$dprime)
+```
+
+We also want to extract blocks of interest (i.e., blocks 1-4) removing things like consent information and practice blocks:
+
+```{r}
+#Extract only values of blockcode that begin with "block":
+df_T <- df_T[grepl("^block", df_T$blockcode), ]
+```
+
+## Review trial type data
+
+Write new data frame to .csv:
+
+```{r}
+#Write data to csv for modelling:
+write.table(df_T, file="TrialTypeData.csv",sep=",",row.names=F)
+```
+
+Isolate individual blocks:
+
+```{r}
+#Load in both summary and raw data frames:
+df_T <- read.csv("TrialTypeData.csv")
+
+#Create data set with block numbers as column headers:
+dfl <- df_T[c("subject", "diagnosis", "group", "trialnum","blockcode","latency", "type")] 
+dfw <- dfl %>%
+  pivot_wider( 
+    names_from = 'blockcode', 
+    values_from = 'latency',
+    values_fn = list(latency = first)  # Keep the first value for each combination
+  )
+
+#Extract full data (no NAs) by block, preserving id numbers: 
+block1 <- dfw[, c("subject",  "diagnosis", "group", "block1", "type")]
+block1 <- block1[complete.cases(block1),]
+
+block2 <- dfw[, c("subject",  "diagnosis", "group", "block2", "type")]
+block2 <- block2[complete.cases(block2),]
+
+block3 <- dfw[, c("subject", "diagnosis", "group", "block3", "type")]
+block3 <- block3[complete.cases(block3),]
+
+block4 <- dfw[, c("subject", "diagnosis", "group", "block4", "type")]
+block4 <- block4[complete.cases(block4),]
+
+#Convert block variables to numeric:
+block1 <- transform(block1, block1 = as.numeric(block1))
+block2 <- transform(block2, block2 = as.numeric(block2))
+block3 <- transform(block3, block3 = as.numeric(block3))
+block4 <- transform(block4, block4 = as.numeric(block4))
+```
+
+Calculate trial counts for each block (i.e., how many TT and DT trials were present in each block):
+
+```{r}
+#Function to calculate trial counts for each block:
+trial_count <- function(block_data, block_name) {
+  block_data %>%
+    group_by(subject, type) %>%
+    summarise(trial_count = n(), .groups = "drop") %>%
+    mutate(block = block_name)
+}
+
+# Apply the function to each block
+block1_trial_count <- trial_count(block1, "block1")
+block2_trial_count <- trial_count(block2, "block2")
+block3_trial_count <- trial_count(block3, "block3")
+block4_trial_count <- trial_count(block4, "block4")
+
+# Combine all blocks
+all_blocks <- bind_rows(block1_trial_count, block2_trial_count, block3_trial_count, block4_trial_count)
+
+# Calculate mean, max, and min of trials for tt and dt in each block
+no_trial_participant <- all_blocks %>%
+  group_by(block, type) %>%
+  summarise(
+    mean_trials = mean(trial_count, na.rm = TRUE),
+    max_trials = max(trial_count, na.rm = TRUE),
+    min_trials = min(trial_count, na.rm = TRUE)
+  )
+
+# Print the tibble
+print(no_trial_participant)
+```
+
+Create a version of RT data that has only 84%, 67%, and 33% conditions. This will be for the analysis of trial types (model 2). We can also remove the first trial from each of the remaining blocks. This is because the first trial is not preceded by either target or distractor:
+
+```{r}
+#Load data:
+df_filtered <- read.csv("TrialTypeData.csv")
+
+#Filter data, removing block 1 and trial 1:
+df_filtered <- subset(df_T, blockcode %in% c("block2", "block3", "block4") & trialnum != 1)
+```
+
+Save new data to .csv:
+
+```{r}
+#Write data to csv for modelling:
+write.table(df_filtered, file="TrialTypeData.csv",sep=",",row.names=F)
+```
