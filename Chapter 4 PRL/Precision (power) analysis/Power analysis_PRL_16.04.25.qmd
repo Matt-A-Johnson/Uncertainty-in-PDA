@@ -1,0 +1,1059 @@
+---
+title: "Power analysis_16.04.25"
+format: html
+editor: visual
+---
+
+# Package installation
+
+Install and load packages:
+
+```{r}
+#Install packages and libraries:
+packages <- c("groundhog", "tidyr", "INLA", "tidyverse", "plotrix", 
+              "rstatix", "gridExtra", "tidybayes", "modelsummary", 
+              "rstatix", "brms", "coda", "mvtnorm", "devtools", "dagitty", "StanHeaders", 
+              "rstan", "V8", "bayesplot", "reshape2")
+
+#Install packages if not already installed:
+packages_to_install <- packages[!packages %in% installed.packages()]
+if(length(packages_to_install)) install.packages(packages_to_install, dependencies = TRUE)
+
+#If not already installed, install rethinking() separately:
+#install.packages("rethinking", 
+#                 repos=c(cran="https://cloud.r-project.org",
+#                         rethinking="http://xcelab.net/R"))
+
+#Rstan might need a bit of extra attention. If it doesn't install with the above code, remove any existing RStan via:
+remove.packages("rstan")
+if (file.exists(".RData")) file.remove(".RData")
+
+#Set up compiler flags:
+dotR <- file.path(Sys.getenv("HOME"), ".R")
+if (!file.exists(dotR)) dir.create(dotR)
+M <- file.path(dotR, "Makevars")
+if (!file.exists(M)) file.create(M)
+cat("\nCXX17FLAGS=-O3 -march=native -mtune=native -fPIC",
+    "CXX17=g++", # or clang++ but you may need a version postfix
+    file = M, sep = "\n", append = TRUE)
+
+#This code is for the development version of rstan- I've been told that this might function better than the up-to-date version:
+install.packages("StanHeaders", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+install.packages("rstan", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+
+#To verify your installation, you can run the RStan example/test model:
+example(stan_model, package = "rstan", run.dontrun = TRUE)
+```
+
+```{r}
+#Once installed, load libraries using groundhog():
+library(groundhog)
+
+#Specify packages:
+packages <- c("groundhog", "tidyr", "INLA", "tidyverse", "plotrix", 
+              "rstatix", "gridExtra", "tidybayes", "modelsummary", 
+              "rstatix", "brms", "coda", "mvtnorm", "devtools", "dagitty", "StanHeaders", 
+              "rstan", "V8", "bayesplot")
+
+#Load packages:
+groundhog.library(packages, "2024-06-28", tolerate.R.version='4.4.0')
+```
+
+```{r}
+#If that doesn't work, load packages manually:
+library(rstan)
+library(cmdstanr)
+library(devtools)
+library(V8)
+library(brms)
+library(tidyverse) 
+library(plotrix)
+library(gridExtra)
+library(tidybayes)
+library(modelsummary)
+library(bayesplot)
+library(viridis)
+library(patchwork)
+library(reshape2)
+```
+
+# Preamble
+
+## Goals of analysis
+
+We were interested in how PDA, autism, and anxierty are associated with probabilistic learning. We leveraged a probabilistic reversal learning (PRL) task in which shapes were probabilistically associated with reward and loss: reward contingencies were set at 80:20 and randomised for shape stimuli across participants (e.g., either a triangle or a circle would earn points 80% of the time and lose points 20% of the time, and vice versa). Participants completed two blocks: a stable block in which reward contingencies remained constant throughout (e.g., a circle would reward points 80% and lose points 20%, and vice versa for a triangle), and a volatilie block in which reward contingencies would reverse every 20 trials (e.g.  a circle would reward points 80% and lose points 20%, and vice versa for a triangle for 20 trials, then a triangle would reward points 80% and lose points 20%, and vice versa for a circle).
+
+However, analysis of the collected data returned broad credible intervals for each parameter (see BARG PRL analysis_17.03.25.qmd), suggesting a large degree of uncertainty in model estimates.
+
+The goal of the current analysis was to estimate the number of participants needed to produce precise Bayesian model estimates. To do this, a simulation-based approach was taken. Data were generated based on posterior estimates from previously fitted models (see BARG PRL analysis_17.03.25.qmd). For each specified sample size, models were fit to multiple simulated datasets, and resulting parameter estimates were extracted. By examining the width and stability of credible intervals across simulations, we identified the sample size at which model estimates became sufficiently precise.
+
+# Power analysis
+
+## Lose-shift behaviour
+
+Review posterior distributions from models fit to real data predicting lose-shift behaviour by MASQ and EDA-QA scores:
+
+```{r}
+#Load the model output from a file:
+modLSM <- readRDS("modLSM_output.rds")
+modLSME <- readRDS("modLSME_output.rds")
+
+#Return model output:
+summary(modLSM)
+summary(modLSME)
+
+#Extract posterior samples:
+modLSM_posterior <- posterior_samples(modLSM)
+modLSME_posterior <- posterior_samples(modLSME)
+
+
+#Filter out 'lprior' and 'lp__':
+modLSM_posterior <- modLSM_posterior[, c("b_Intercept", "b_MASQ", "b_neurotypeNT", "b_MASQ:neurotypeNT", "sigma")]
+modLSME_posterior <- modLSME_posterior[, c("b_Intercept", "b_MASQ", "b_neurotypeNT","b_EDAQ", "b_MASQ:neurotypeNT", "b_neurotypeNT:EDAQ", "sigma")]
+
+#Convert the data frame to long format:
+modLSM_posterior_long <- pivot_longer(modLSM_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+modLSME_posterior_long <- pivot_longer(modLSME_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+modLSM_posterior_long$Parameter <- recode(modLSM_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept",
+                                            "b_MASQ" = "MASQ", 
+                                            "b_neurotypeNT" = "neurotypeNT",
+                                            "b_EDAQ" = "EDAQ", 
+                                            "b_MASQ:neurotypeNT" = "MASQ:neurotypeNT", 
+                                            "b_neurotypeNT.EDAQ" = "neurotypeNT:EDAQ", 
+                                            "sigma" = "Sigma")
+modLSME_posterior_long$Parameter <- recode(modLSME_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept",
+                                            "b_MASQ" = "MASQ", 
+                                            "b_neurotypeNT" = "neurotypeNT",
+                                            "b_EDAQ" = "EDAQ", 
+                                            "b_MASQ:neurotypeNT" = "MASQ:neurotypeNT", 
+                                            "b_neurotypeNT:EDAQ" = "neurotypeNT:EDAQ", 
+                                            "sigma" = "Sigma")
+
+#Extract group information from parameter names:
+modLSM_posterior_long$Group <- sub(":.*", "", modLSM_posterior_long$Parameter)
+modLSME_posterior_long$Group <- sub(":.*", "", modLSME_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+modLSM_posterior_long$Parameter <- factor(modLSM_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept","MASQ","neurotypeNT","MASQ:neurotypeNT","Sigma")))
+modLSME_posterior_long$Parameter <- factor(modLSME_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept","MASQ","neurotypeNT","EDAQ","MASQ:neurotypeNT","neurotypeNT:EDAQ","Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+ggplot(modLSM_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+ggsave( 'LS_dist.png', plot = last_plot(), dpi = 300)
+
+ggplot(modLSME_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+```
+
+Precision analysis for loseShift \~ neurotype + MASQ + neurotype\*MASQ :
+
+```{r}
+#Simulate different scenarios using brms().
+
+#NOTE: the following code only works when the rethinking() library has NOT been loaded in- rethinking() and tidyverse() compete over the map() function.
+
+#Run power analysis:
+sim_LSM_and_fit <- function(seed, n) {
+  
+  set.seed(seed)
+  
+  d_LSM <- 
+    tibble(group = rep(c("NT", "ASC"), each = n)) %>% 
+    mutate(neurotype = factor(group, levels = c("ASC", "NT")),
+           loseShift = ifelse(group == "NT", 
+              rnorm(n, mean = -0.10, sd = 1),
+              rnorm(n, mean = 0.10, sd = 1)),
+           #The Intercept represents the mean loseShift for the ASC group (since ASC is coded as the reference level). The neurotypeNT coefficient tells you the difference in loseShift between NT and ASC.So: Mean loseShift (ASC) = 0.10, and Mean loseShift (NT) = 0.10 - 0.20 = -0.10
+           MASQ = ifelse(group == "NT",
+              0.04 * loseShift + rnorm(n, 0, 1),
+              0.03 * loseShift + rnorm(n, 0, 1))) #based on: MASQ (ASC) = 0.03, MASQ:neurotypeNT = 0.01 → total slope for NT = 0.03 + 0.01 = 0.04
+  
+  update(modLSM,
+         newdata = d_LSM, 
+         seed = seed) %>% 
+    fixef() %>% 
+    data.frame() %>% 
+    rownames_to_column("parameter") %>% 
+    filter(parameter %in% c("MASQ", "neurotypeNT", "MASQ:neurotypeNT")) 
+}
+
+#Iterate multiple times (suggested 100, but start with 10):
+n_sim <- 10 
+
+#Manipulate the value of n below to assess power - a good spread seems to be 500, 1000, and 2000:
+s_LSM <-
+  tibble(seed = sample.int(1e6, n_sim)) %>% 
+  mutate(sim_number = row_number(),
+         betas = map(seed, sim_LSM_and_fit, n = 500)) %>% 
+  unnest(betas)
+
+#Inspect output;
+head(s_LSM)
+
+#Visualise:
+s_LSM %>% 
+  ggplot(aes(x = factor(sim_number), y = Estimate, ymin = Q2.5, ymax = Q97.5)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(fatten = 0.6) +
+  facet_wrap(~ parameter, scales = "free_y") +
+  labs(
+    x = "Simulation Number",
+    y = "Estimated Effect (std)",
+    title = "Parameter estimates across simulations predicting lose-shift ~ n500"
+  ) +
+  theme_minimal() +
+  guides(color = "none")
+ggsave( 'PA_modLSM_n500.png', plot = last_plot(), dpi = 300)
+```
+
+Review estimated effects when n = x:
+
+```{r}
+#Load and display plots:
+knitr::include_graphics(c("PA_modLSM_n500.png", "PA_modLSM_n1000.png", "PA_modLSM_n2000.png"))
+```
+
+Precision analysis for loseShift\~ neurotype + MASQ + neurotype\*MASQ + EDAQ+ neurotype\*EDAQ:
+
+```{r}
+#Simulate different scenarios using brms().
+
+#NOTE: the following code only works when the rethinking() library has NOT been loaded in- rethinking() and tidyverse() compete over the map() function.
+
+#Run power analysis:
+sim_LSME_and_fit <- function(seed, n) {
+  
+  set.seed(seed)
+  
+  d_LSME <- 
+    tibble(group = rep(c("NT", "ASC"), each = n)) %>% 
+    mutate(neurotype = factor(group, levels = c("ASC", "NT")),
+           loseShift = ifelse(group == "NT", 
+              rnorm(n, mean = -0.08, sd = 1),
+              rnorm(n, mean = 0.06, sd = 1)),
+           #The Intercept represents the mean loseShift for the ASC group (since ASC is coded as the reference level). The neurotypeNT coefficient tells you the difference in loseShift between NT and ASC.So: Mean loseShift (ASC) = 0.06, and Mean loseShift (NT) = 0.06 - 0.14 = -0.08
+           MASQ = ifelse(group == "NT",
+              -0.04 * loseShift + rnorm(n, 0, 1),
+              -0.09 * loseShift + rnorm(n, 0, 1)), #based on: MASQ (ASC) = -0.09, MASQ:neurotypeNT = 0.05 → total slope for NT = -0.09 + 0.05 = -0.04
+           EDAQ = ifelse(group == "NT",
+              0.13 * loseShift + rnorm(n, 0, 1),
+              0.19 * loseShift + rnorm(n, 0, 1))) #based on: EDAQ (ASC) = 0.19 EDAQ:neurotypeNT = -0.06 → total slope for NT = 0.19 - 0.06 = 0.13
+  
+  update(modLSME,
+         newdata = d_LSME, 
+         seed = seed) %>% 
+    fixef() %>% 
+    data.frame() %>% 
+    rownames_to_column("parameter") %>% 
+    filter(parameter %in% c("MASQ", "EDAQ", "neurotypeNT", "MASQ:neurotypeNT", "neurotypeNT:EDAQ")) 
+}
+
+#Iterate multiple times (suggested 100, but start with 10):
+n_sim <- 10 
+
+#Manipulate the value of n below to assess power - a good spread seems to be 500, 1000, 2000:
+s_LSME <-
+  tibble(seed = sample.int(1e6, n_sim)) %>% 
+  mutate(sim_number = row_number(),
+         betas = map(seed, sim_LSME_and_fit, n = 2e3)) %>% 
+  unnest(betas)
+
+#Inspect output;
+head(s_LSME)
+
+#Visualise:
+s_LSME %>% 
+  ggplot(aes(x = factor(sim_number), y = Estimate, ymin = Q2.5, ymax = Q97.5)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(fatten = 0.6) +
+  facet_wrap(~ parameter, scales = "free_y") +
+  labs(
+    x = "Simulation Number",
+    y = "Estimated Effect (std)",
+    title = "Parameter estimates across simulations predicting lose-shift ~ n2000"
+  ) +
+  theme_minimal() +
+  guides(color = "none")
+ggsave( 'PA_modLSME_n2000.png', plot = last_plot(), dpi = 300)
+```
+
+Review estimated effects when n = x:
+
+```{r}
+#Load and display plots:
+knitr::include_graphics(c("PA_modLSME_n500.png", "PA_modLSME_n1000.png", "PA_modLSME_n2000.png"))
+```
+
+## Perseveration
+
+Review posterior distributions from models fit to real data predicting perseveration by MASQ and EDA-QA scores:
+
+```{r}
+#Load the model output from a file:
+modPM <- readRDS("modPM_output.rds")
+modPME <- readRDS("modPME_output.rds")
+
+#Return model output:
+summary(modPM)
+summary(modPME)
+
+#Extract posterior samples:
+modPM_posterior <- posterior_samples(modPM)
+modPME_posterior <- posterior_samples(modPME)
+
+
+#Filter out 'lprior' and 'lp__':
+modPM_posterior <- modPM_posterior[, c("b_Intercept", "b_MASQ", "b_neurotypeNT", "b_MASQ:neurotypeNT", "sigma")]
+modPME_posterior <- modPME_posterior[, c("b_Intercept", "b_MASQ", "b_neurotypeNT","b_EDAQ", "b_MASQ:neurotypeNT", "b_neurotypeNT:EDAQ", "sigma")]
+
+#Convert the data frame to long format:
+modPM_posterior_long <- pivot_longer(modPM_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+modPME_posterior_long <- pivot_longer(modPME_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+modPM_posterior_long$Parameter <- recode(modPM_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept",
+                                            "b_MASQ" = "MASQ", 
+                                            "b_neurotypeNT" = "neurotypeNT",
+                                            "b_EDAQ" = "EDAQ", 
+                                            "b_MASQ:neurotypeNT" = "MASQ:neurotypeNT", 
+                                            "b_neurotypeNT.EDAQ" = "neurotypeNT:EDAQ", 
+                                            "sigma" = "Sigma")
+modPME_posterior_long$Parameter <- recode(modPME_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept",
+                                            "b_MASQ" = "MASQ", 
+                                            "b_neurotypeNT" = "neurotypeNT",
+                                            "b_EDAQ" = "EDAQ", 
+                                            "b_MASQ:neurotypeNT" = "MASQ:neurotypeNT", 
+                                            "b_neurotypeNT:EDAQ" = "neurotypeNT:EDAQ", 
+                                            "sigma" = "Sigma")
+
+#Extract group information from parameter names:
+modPM_posterior_long$Group <- sub(":.*", "", modPM_posterior_long$Parameter)
+modPME_posterior_long$Group <- sub(":.*", "", modPME_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+modPM_posterior_long$Parameter <- factor(modPM_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept","MASQ","neurotypeNT","MASQ:neurotypeNT","Sigma")))
+modPME_posterior_long$Parameter <- factor(modPME_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept","MASQ","neurotypeNT","EDAQ","MASQ:neurotypeNT","neurotypeNT:EDAQ","Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+ggplot(modPM_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+ggsave( 'P_dist.png', plot = last_plot(), dpi = 300)
+
+ggplot(modPME_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+```
+
+Precision analysis for perseveration \~ neurotype + MASQ + neurotype\*MASQ :
+
+```{r}
+#Simulate different scenarios using brms().
+
+#NOTE: the following code only works when the rethinking() library has NOT been loaded in- rethinking() and tidyverse() compete over the map() function.
+
+#Run power analysis:
+sim_PM_and_fit <- function(seed, n) {
+  
+  set.seed(seed)
+  
+  d_PM <- 
+    tibble(group = rep(c("NT", "ASC"), each = n)) %>% 
+    mutate(neurotype = factor(group, levels = c("ASC", "NT")),
+           perseveration = ifelse(group == "NT", 
+              rnorm(n, mean = 0.09, sd = 1),
+              rnorm(n, mean = -0.03, sd = 1)),
+           #The Intercept represents the mean perseveration for the ASC group (since ASC is coded as the reference level). The neurotypeNT coefficient tells you the difference in perseveration between NT and ASC.So: Mean perseveration (ASC) = -0.03, and Mean perseveration (NT) = -0.03 + 0.12 = 0.09
+           MASQ = ifelse(group == "NT",
+              0.07 * perseveration + rnorm(n, 0, 1),
+              -0.07 * perseveration + rnorm(n, 0, 1))) #based on: MASQ (ASC) = -0.07, MASQ:neurotypeNT = 0.14 → total slope for NT = -0.07 + 0.14 = 0.07
+  
+  update(modPM,
+         newdata = d_PM, 
+         seed = seed) %>% 
+    fixef() %>% 
+    data.frame() %>% 
+    rownames_to_column("parameter") %>% 
+    filter(parameter %in% c("MASQ", "neurotypeNT", "MASQ:neurotypeNT")) 
+}
+
+#Iterate multiple times (suggested 100, but start with 10):
+n_sim <- 10 
+
+#Manipulate the value of n below to assess power - a good spread seems to be 500, 1000, 2000, and 3000:
+s_PM <-
+  tibble(seed = sample.int(1e6, n_sim)) %>% 
+  mutate(sim_number = row_number(),
+         betas = map(seed, sim_PM_and_fit, n = 2e3)) %>% 
+  unnest(betas)
+
+#Inspect output;
+head(s_PM)
+
+#Visualise:
+s_PM %>% 
+  ggplot(aes(x = factor(sim_number), y = Estimate, ymin = Q2.5, ymax = Q97.5)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(fatten = 0.6) +
+  facet_wrap(~ parameter, scales = "free_y") +
+  labs(
+    x = "Simulation Number",
+    y = "Estimated Effect (std)",
+    title = "Parameter estimates across simulations predicting perseveration ~ n2000"
+  ) +
+  theme_minimal() +
+  guides(color = "none")
+ggsave( 'PA_modPM_n2000.png', plot = last_plot(), dpi = 300)
+```
+
+Review estimated effects when n = x:
+
+```{r}
+#Load and display plots:
+knitr::include_graphics(c("PA_modPM_n500.png", "PA_modPM_n1000.png", "PA_modPM_n2000.png"))
+```
+
+Precision analysis for perseveration \~ neurotype + MASQ + neurotype\*MASQ + EDAQ+ neurotype\*EDAQ:
+
+```{r}
+#Simulate different scenarios using brms().
+
+#NOTE: the following code only works when the rethinking() library has NOT been loaded in- rethinking() and tidyverse() compete over the map() function.
+
+#Run power analysis:
+sim_PME_and_fit <- function(seed, n) {
+  
+  set.seed(seed)
+  
+  d_PME <- 
+    tibble(group = rep(c("NT", "ASC"), each = n)) %>% 
+    mutate(neurotype = factor(group, levels = c("ASC", "NT")),
+           perseveration = ifelse(group == "NT", 
+              rnorm(n, mean = 0.02, sd = 1),
+              rnorm(n, mean = -0.04, sd = 1)),
+           #The Intercept represents the mean perseveration for the ASC group (since ASC is coded as the reference level). The neurotypeNT coefficient tells you the difference in perseveration between NT and ASC.So: Mean perseveration (ASC) = -0.04, and Mean perseveration (NT) = -0.04 + 0.06 = 0.02
+           MASQ = ifelse(group == "NT",
+              0.27 * perseveration + rnorm(n, 0, 1),
+              -0.09 * perseveration + rnorm(n, 0, 1)), #based on: MASQ (ASC) = -0.09, MASQ:neurotypeNT = 0.36 → total slope for NT = -0.09 + 0.36 = 0.27
+           EDAQ = ifelse(group == "NT",
+              -0.30 * perseveration + rnorm(n, 0, 1),
+              0.04 * perseveration + rnorm(n, 0, 1))) #based on: EDAQ (ASC) = 0.04 EDAQ:neurotypeNT = -0.34 → total slope for NT = 0.04 - 0.34 = -0.30
+  
+  update(modPME,
+         newdata = d_PME, 
+         seed = seed) %>% 
+    fixef() %>% 
+    data.frame() %>% 
+    rownames_to_column("parameter") %>% 
+    filter(parameter %in% c("MASQ", "EDAQ", "neurotypeNT", "MASQ:neurotypeNT", "neurotypeNT:EDAQ")) 
+}
+
+#Iterate multiple times (suggested 100, but start with 10):
+n_sim <- 10 
+
+#Manipulate the value of n below to assess power - a good spread seems to be 500, 1000, 2000:
+s_PME <-
+  tibble(seed = sample.int(1e6, n_sim)) %>% 
+  mutate(sim_number = row_number(),
+         betas = map(seed, sim_PME_and_fit, n = 2e3)) %>% 
+  unnest(betas)
+
+#Inspect output;
+head(s_PME)
+
+#Visualise:
+s_PME %>% 
+  ggplot(aes(x = factor(sim_number), y = Estimate, ymin = Q2.5, ymax = Q97.5)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(fatten = 0.6) +
+  facet_wrap(~ parameter, scales = "free_y") +
+  labs(
+    x = "Simulation Number",
+    y = "Estimated Effect (std)",
+    title = "Parameter estimates across simulations predicting perseveration ~ n2000"
+  ) +
+  theme_minimal() +
+  guides(color = "none")
+ggsave( 'PA_modPME_n2000.png', plot = last_plot(), dpi = 300)
+```
+
+Review estimated effects when n = x:
+
+```{r}
+#Load and display plots:
+knitr::include_graphics(c("PA_modPME_n500.png", "PA_modPME_n1000.png", "PA_modPME_n2000.png"))
+```
+
+## Regression
+
+Review posterior distributions from models fit to real data predicting regression by MASQ and EDA-QA scores:
+
+```{r}
+#Load the model output from a file:
+modReM <- readRDS("modReM_output.rds")
+modReME <- readRDS("modReME_output.rds")
+
+#Return model output:
+summary(modReM)
+summary(modReME)
+
+#Extract posterior samples:
+modReM_posterior <- posterior_samples(modReM)
+modReME_posterior <- posterior_samples(modReME)
+
+
+#Filter out 'lprior' and 'lp__':
+modReM_posterior <- modReM_posterior[, c("b_Intercept", "b_MASQ", "b_neurotypeNT", "b_MASQ:neurotypeNT", "sigma")]
+modReME_posterior <- modReME_posterior[, c("b_Intercept", "b_MASQ", "b_neurotypeNT","b_EDAQ", "b_MASQ:neurotypeNT", "b_neurotypeNT:EDAQ", "sigma")]
+
+#Convert the data frame to long format:
+modReM_posterior_long <- pivot_longer(modReM_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+modReME_posterior_long <- pivot_longer(modReME_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+modReM_posterior_long$Parameter <- recode(modReM_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept",
+                                            "b_MASQ" = "MASQ", 
+                                            "b_neurotypeNT" = "neurotypeNT",
+                                            "b_EDAQ" = "EDAQ", 
+                                            "b_MASQ:neurotypeNT" = "MASQ:neurotypeNT", 
+                                            "b_neurotypeNT.EDAQ" = "neurotypeNT:EDAQ", 
+                                            "sigma" = "Sigma")
+modReME_posterior_long$Parameter <- recode(modReME_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept",
+                                            "b_MASQ" = "MASQ", 
+                                            "b_neurotypeNT" = "neurotypeNT",
+                                            "b_EDAQ" = "EDAQ", 
+                                            "b_MASQ:neurotypeNT" = "MASQ:neurotypeNT", 
+                                            "b_neurotypeNT:EDAQ" = "neurotypeNT:EDAQ", 
+                                            "sigma" = "Sigma")
+
+#Extract group information from parameter names:
+modReM_posterior_long$Group <- sub(":.*", "", modReM_posterior_long$Parameter)
+modReME_posterior_long$Group <- sub(":.*", "", modReME_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+modReM_posterior_long$Parameter <- factor(modReM_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept","MASQ","neurotypeNT","MASQ:neurotypeNT","Sigma")))
+modReME_posterior_long$Parameter <- factor(modReME_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept","MASQ","neurotypeNT","EDAQ","MASQ:neurotypeNT","neurotypeNT:EDAQ","Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+ggplot(modReM_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+ggsave( 'R_dist.png', plot = last_plot(), dpi = 300)
+
+ggplot(modReME_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+```
+
+Precision analysis for regression \~ neurotype + MASQ + neurotype\*MASQ:
+
+```{r}
+#Simulate different scenarios using brms().
+
+#NOTE: the following code only works when the rethinking() library has NOT been loaded in- rethinking() and tidyverse() compete over the map() function.
+
+#Run power analysis:
+sim_ReM_and_fit <- function(seed, n) {
+  
+  set.seed(seed)
+  
+  d_ReM <- 
+    tibble(group = rep(c("NT", "ASC"), each = n)) %>% 
+    mutate(neurotype = factor(group, levels = c("ASC", "NT")),
+           regression = ifelse(group == "NT", 
+              rnorm(n, mean = -0.04, sd = 1),
+              rnorm(n, mean = 0.05, sd = 1)),
+           #The Intercept represents the mean regression for the ASC group (since ASC is coded as the reference level). The neurotypeNT coefficient tells you the difference in regression between NT and ASC.So: Mean regression (ASC) = 0.05, and Mean regression (NT) = 0.05 - 0.09 = -0.04
+           MASQ = ifelse(group == "NT",
+              0.20 * regression + rnorm(n, 0, 1),
+              0.17 * regression + rnorm(n, 0, 1))) #based on: MASQ (ASC) = 0.17, MASQ:neurotypeNT = 0.03 → total slope for NT = 0.17 + 0.03 = 0.20
+  
+  update(modReM,
+         newdata = d_ReM, 
+         seed = seed) %>% 
+    fixef() %>% 
+    data.frame() %>% 
+    rownames_to_column("parameter") %>% 
+    filter(parameter %in% c("MASQ", "neurotypeNT", "MASQ:neurotypeNT")) 
+}
+
+#Iterate multiple times (suggested 100, but start with 10):
+n_sim <- 10 
+
+#Manipulate the value of n below to assess power - a good spread seems to be 500, 1000, 2000, and 3000:
+s_ReM <-
+  tibble(seed = sample.int(1e6, n_sim)) %>% 
+  mutate(sim_number = row_number(),
+         betas = map(seed, sim_ReM_and_fit, n = 2e3)) %>% 
+  unnest(betas)
+
+#Inspect output;
+head(s_ReM)
+
+#Visualise:
+s_ReM %>% 
+  ggplot(aes(x = factor(sim_number), y = Estimate, ymin = Q2.5, ymax = Q97.5)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(fatten = 0.6) +
+  facet_wrap(~ parameter, scales = "free_y") +
+  labs(
+    x = "Simulation Number",
+    y = "Estimated Effect (std)",
+    title = "Parameter estimates across simulations predicting regression ~ n2000"
+  ) +
+  theme_minimal() +
+  guides(color = "none")
+ggsave( 'PA_modReM_n2000.png', plot = last_plot(), dpi = 300)
+```
+
+Review estimated effects when n = x:
+
+```{r}
+#Load and display plots:
+knitr::include_graphics(c("PA_modReM_n500.png", "PA_modReM_n1000.png", "PA_modReM_n2000.png"))
+```
+
+Precision analysis for regression \~ neurotype + MASQ + neurotype\*MASQ + EDAQ+ neurotype\*EDAQ:
+
+```{r}
+#Simulate different scenarios using brms().
+
+#NOTE: the following code only works when the rethinking() library has NOT been loaded in- rethinking() and tidyverse() compete over the map() function.
+
+#Run power analysis:
+sim_ReME_and_fit <- function(seed, n) {
+  
+  set.seed(seed)
+  
+  d_ReME <- 
+    tibble(group = rep(c("NT", "ASC"), each = n)) %>% 
+    mutate(neurotype = factor(group, levels = c("ASC", "NT")),
+           regression = ifelse(group == "NT", 
+              rnorm(n, mean = 0.03, sd = 1),
+              rnorm(n, mean = 0.06, sd = 1)),
+           #The Intercept represents the mean regression for the ASC group (since ASC is coded as the reference level). The neurotypeNT coefficient tells you the difference in regression between NT and ASC.So: Mean regression (ASC) = 0.06, and Mean regression (NT) = 0.06 - 0.03 = 0.03
+           MASQ = ifelse(group == "NT",
+              -0.01 * regression + rnorm(n, 0, 1),
+              0.16 * regression + rnorm(n, 0, 1)), #based on: MASQ (ASC) = 0.16, MASQ:neurotypeNT = -0.17 → total slope for NT = 0.16 - 0.17 = -0.01
+           EDAQ = ifelse(group == "NT",
+              0.31 * regression + rnorm(n, 0, 1),
+              0.00 * regression + rnorm(n, 0, 1))) #based on: EDAQ (ASC) = 0.00 EDAQ:neurotypeNT = 0.31 → total slope for NT = 0.00 + 0.31 = 0.31
+  
+  update(modReME,
+         newdata = d_ReME, 
+         seed = seed) %>% 
+    fixef() %>% 
+    data.frame() %>% 
+    rownames_to_column("parameter") %>% 
+    filter(parameter %in% c("MASQ", "EDAQ", "neurotypeNT", "MASQ:neurotypeNT", "neurotypeNT:EDAQ")) 
+}
+
+#Iterate multiple times (suggested 100, but start with 10):
+n_sim <- 10 
+
+#Manipulate the value of n below to assess power - a good spread seems to be 500, 1000, 2000:
+s_ReME <-
+  tibble(seed = sample.int(1e6, n_sim)) %>% 
+  mutate(sim_number = row_number(),
+         betas = map(seed, sim_ReME_and_fit, n = 2e3)) %>% 
+  unnest(betas)
+
+#Inspect output;
+head(s_ReME)
+
+#Visualise:
+s_ReME %>% 
+  ggplot(aes(x = factor(sim_number), y = Estimate, ymin = Q2.5, ymax = Q97.5)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(fatten = 0.6) +
+  facet_wrap(~ parameter, scales = "free_y") +
+  labs(
+    x = "Simulation Number",
+    y = "Estimated Effect (std)",
+    title = "Parameter estimates across simulations predicting regression ~ n2000"
+  ) +
+  theme_minimal() +
+  guides(color = "none")
+ggsave( 'PA_modReME_n2000.png', plot = last_plot(), dpi = 300)
+```
+
+Review estimated effects when n = x:
+
+```{r}
+#Load and display plots:
+knitr::include_graphics(c("PA_modReME_n500.png", "PA_modReME_n1000.png", "PA_modReME_n2000.png"))
+```
+
+## RLLR
+
+Review posterior distributions from models fit to real data predicting RLLR by MASQ and EDA-QA scores:
+
+```{r}
+#Load the model output from a file:
+modRM <- readRDS("modRM_output.rds")
+modRME <- readRDS("modRME_output.rds")
+
+#Return model output:
+summary(modRM)
+summary(modRME)
+
+#Read in posterior samples .csv to data frame:
+modRM_posterior <- read.csv("modRM_posterior.csv")
+modRME_posterior <- read.csv("modRME_posterior.csv")
+
+
+#Filter out 'lprior' and 'lp__':
+modRM_posterior <- modRM_posterior[, c("b_Intercept", "b_MASQ", "b_neurotypeNT", "b_MASQ.neurotypeNT", "sigma")]
+modRME_posterior <- modRME_posterior[, c("b_Intercept", "b_MASQ", "b_neurotypeNT","b_EDAQ", "b_MASQ.neurotypeNT", "b_neurotypeNT.EDAQ", "sigma")]
+
+#Convert the data frame to long format:
+modRM_posterior_long <- pivot_longer(modRM_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+modRME_posterior_long <- pivot_longer(modRME_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+modRM_posterior_long$Parameter <- recode(modRM_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept",
+                                            "b_MASQ" = "MASQ", 
+                                            "b_neurotypeNT" = "neurotypeNT",
+                                            "b_EDAQ" = "EDAQ", 
+                                            "b_MASQ.neurotypeNT" = "MASQ:neurotypeNT", 
+                                            "b_neurotypeNT.EDAQ" = "neurotypeNT:EDAQ", 
+                                            "sigma" = "Sigma")
+modRME_posterior_long$Parameter <- recode(modRME_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept",
+                                            "b_MASQ" = "MASQ", 
+                                            "b_neurotypeNT" = "neurotypeNT",
+                                            "b_EDAQ" = "EDAQ", 
+                                            "b_MASQ.neurotypeNT" = "MASQ:neurotypeNT", 
+                                            "b_neurotypeNT.EDAQ" = "neurotypeNT:EDAQ", 
+                                            "sigma" = "Sigma")
+
+#Extract group information from parameter names:
+modRM_posterior_long$Group <- sub(":.*", "", modRM_posterior_long$Parameter)
+modRME_posterior_long$Group <- sub(":.*", "", modRME_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+modRM_posterior_long$Parameter <- factor(modRM_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept","MASQ","neurotypeNT","MASQ:neurotypeNT","Sigma")))
+modRME_posterior_long$Parameter <- factor(modRME_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept","MASQ","neurotypeNT","EDAQ","MASQ:neurotypeNT","neurotypeNT:EDAQ","Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+ggplot(modRM_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+ggsave( 'RLLR_dist.png', plot = last_plot(), dpi = 300)
+
+ggplot(modRME_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+```
+
+Precision analysis for RLLR \~ neurotype + MASQ + neurotype\*MASQ :
+
+```{r}
+#Simulate different scenarios using brms().
+
+#NOTE: the following code only works when the rethinking() library has NOT been loaded in- rethinking() and tidyverse() compete over the map() function.
+
+#Run power analysis:
+sim_RM_and_fit <- function(seed, n) {
+  
+  set.seed(seed)
+  
+  d_RM <- 
+    tibble(group = rep(c("NT", "ASC"), each = n)) %>% 
+    mutate(neurotype = factor(group, levels = c("ASC", "NT")),
+           RLLR = ifelse(group == "NT", 
+              rnorm(n, mean = 0.08, sd = 1),
+              rnorm(n, mean = -0.04, sd = 1)),
+           #The Intercept represents the mean RLLR for the ASC group (since NT is coded as the reference level neurotypeNT). The neurotypeNT coefficient tells you the difference in RLLR between NT and ASC.So: Mean RLLR (ASC) = −0.04, and Mean RLLR (NT) = −0.04 + 0.12 = 0.08
+           MASQ = ifelse(group == "NT",
+              0.12 * RLLR + rnorm(n, 0, 1),
+              0.04 * RLLR + rnorm(n, 0, 1))) #based on: MASQ (ASC) = 0.04, MASQ:neurotypeNT = 0.08 → total slope for NT = 0.04 + 0.08 = 0.12
+  
+  update(modRM,
+         newdata = d_RM, 
+         seed = seed) %>% 
+    fixef() %>% 
+    data.frame() %>% 
+    rownames_to_column("parameter") %>% 
+    filter(parameter %in% c("MASQ", "neurotypeNT", "MASQ:neurotypeNT")) 
+  
+}
+
+#Iterate multiple times (suggested 100, but start with 10):
+n_sim <- 10 
+
+#Manipulate the value of n below to assess power - a good spread seems to be 500, 1000, and 2000:
+s_RM <-
+  tibble(seed = sample.int(1e6, n_sim)) %>% 
+  mutate(sim_number = row_number(),
+         betas = map(seed, sim_RM_and_fit, n = 500)) %>% 
+  unnest(betas)
+
+#Inspect output;
+head(s_RM)
+
+#Visualise:
+s_RM %>% 
+  ggplot(aes(x = factor(sim_number), y = Estimate, ymin = Q2.5, ymax = Q97.5)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(fatten = 0.6) +
+  facet_wrap(~ parameter, scales = "free_y") +
+  labs(
+    x = "Simulation Number",
+    y = "Estimated Effect (std)",
+    title = "Parameter estimates across simulations predicting RLLR ~ n500"
+  ) +
+  theme_minimal() +
+  guides(color = "none")
+ggsave( 'PA_modRM_n500.png', plot = last_plot(), dpi = 300)
+```
+
+Review estimated effects when n = x:
+
+```{r}
+#Load and display plots:
+knitr::include_graphics(c("PA_modRM_n500.png", "PA_modRM_n1000.png", "PA_modRM_n2000.png"))
+```
+
+Precision analysis for RLLR \~ neurotype + MASQ + neurotype\*MASQ + EDAQ+ neurotype\*EDAQ:
+
+```{r}
+#Simulate different scenarios using brms().
+
+#NOTE: the following code only works when the rethinking() library has NOT been loaded in- rethinking() and tidyverse() compete over the map() function.
+
+#Run power analysis:
+sim_RME_and_fit <- function(seed, n) {
+  
+  set.seed(seed)
+  
+  d <- 
+    tibble(group = rep(c("NT", "ASC"), each = n)) %>% 
+    mutate(neurotype = factor(group, levels = c("ASC", "NT")),
+           RLLR = ifelse(group == "NT", 
+              rnorm(n, mean = 0.12, sd = 1),
+              rnorm(n, mean = 0.02, sd = 1)),
+           #The Intercept represents the mean RLLR for the ASC group (since NT is coded as the reference level neurotypeNT). The neurotypeNT coefficient tells you the difference in RLLR between NT and ASC.So: Mean RLLR (ASC) = 0.02, and Mean RLLR (NT) = 0.02 + 0.10 = 0.12
+           MASQ = ifelse(group == "NT",
+              0.01 * RLLR + rnorm(n, 0, 1),
+              0.24 * RLLR + rnorm(n, 0, 1)), #based on: MASQ (ASC) = 0.24, MASQ:neurotypeNT = -0.23 → total slope for NT = 0.24 -0.23 = 0.01
+           EDAQ = ifelse(group == "NT",
+              0.17 * RLLR + rnorm(n, 0, 1),
+              -0.31 * RLLR + rnorm(n, 0, 1))) #based on: EDAQ (ASC) = -0.31 EDAQ:neurotypeNT = 0.48 → total slope for NT = -0.31 + 0.48 = 0.17
+  
+  update(modRME,
+         newdata = d_RME, 
+         seed = seed) %>% 
+    fixef() %>% 
+    data.frame() %>% 
+    rownames_to_column("parameter") %>% 
+    filter(parameter %in% c("MASQ", "EDAQ", "neurotypeNT", "MASQ:neurotypeNT", "neurotypeNT:EDAQ")) 
+}
+
+#Iterate multiple times (suggested 100, but start with 10):
+n_sim <- 10 
+
+#Manipulate the value of n below to assess power - a good spread seems to be 500, 1000, and 2000:
+s_RME <-
+  tibble(seed = sample.int(1e6, n_sim)) %>% 
+  mutate(sim_number = row_number(),
+         betas = map(seed, sim_RME_and_fit, n = 500)) %>% 
+  unnest(betas)
+
+#Inspect output;
+head(s_RME)
+
+#Visualise:
+s_RME %>% 
+  ggplot(aes(x = factor(sim_number), y = Estimate, ymin = Q2.5, ymax = Q97.5)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_pointrange(fatten = 0.6) +
+  facet_wrap(~ parameter, scales = "free_y") +
+  labs(
+    x = "Simulation Number",
+    y = "Estimated Effect (std)",
+    title = "Parameter estimates across simulations predicting RLLR ~ n500"
+  ) +
+  theme_minimal() +
+  guides(color = "none")
+ggsave( 'PA_modRME_n500.png', plot = last_plot(), dpi = 300)
+```
+
+Review estimated effects when n = x:
+
+```{r}
+#Load and display plots:
+knitr::include_graphics(c("PA_modRME_n500.png", "PA_modRME_n1000.png", "PA_modRME_n2000.png"))
+```
+
+# Conclusion
+
+We conclude that \[...\]
