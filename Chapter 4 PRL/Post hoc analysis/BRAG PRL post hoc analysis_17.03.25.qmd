@@ -282,6 +282,17 @@ and Neurotype") +
   guides(color = guide_legend(ncol = 1)) +
   facet_grid(. ~ factor(blockorder))
 ggsave( 'congruence_Vol_se.png', plot = last_plot(), dpi = 300)
+
+#Create a table to display congruence values for each neurotype
+congruence_STABLE %>%
+  group_by(neurotype, trial_group) %>%
+  summarise(
+    avg_accuracy = mean(congruence),  # Average accuracy across participants in each trial group
+    se = sd(congruence) / sqrt(n()),  # Standard error across participants (mean congruence per trial group)
+    sd = sd(congruence),
+    Range = range(congruence),
+    .groups = 'drop'
+  )
 ```
 
 Again, neurotypical and autistic groups differ in their choice congruence - the neurotypical group had higher choice congruence after the 5th trial block in the stable condition compared to the autistic group.
@@ -408,6 +419,7 @@ congruence_STABLE %>%
   summarise(
     avg_accuracy = mean(congruence),  # Average accuracy across participants in each trial group
     se = sd(congruence) / sqrt(n()),  # Standard error across participants (mean congruence per trial group)
+    sd = sd(congruence),
     Range = range(congruence),
     .groups = 'drop'
   )
@@ -417,6 +429,7 @@ congruence_VOLATILE %>%
   summarise(
     avg_accuracy = mean(congruence),  # Average accuracy across participants in each trial group
     se = sd(congruence) / sqrt(n()),  # Standard error across participants (mean congruence per trial group)
+    sd = sd(congruence),
     Range = range(congruence),
     .groups = 'drop'
   )
@@ -1359,7 +1372,7 @@ plot_title <- ggtitle("Posterior distributions",
 ggplot(modCC_posterior_long, aes(x = Estimate, y = Parameter, fill = Group)) +
   stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3) +  # Adjusting the size of the points
   #scale_fill_manual(values = colors) +
-  labs(x = "Parameter estimates", y = "Parameters", fill = "Group") +
+  labs(x = "Estimated Choice-Congruence (std)", y = "Parameters", fill = "Group") +
   plot_title +
   scale_fill_manual(values = colors,  breaks = c("NT", "ASC")) + 
   theme_minimal() +  # Using theme_minimal() instead of theme_clean()
@@ -1460,7 +1473,7 @@ plot_title <- ggtitle("Posterior distributions",
 ggplot(modCCP_posterior_long, aes(x = Estimate, y = Parameter, fill = Group)) +
   stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3) +  # Adjusting the size of the points
   #scale_fill_manual(values = colors) +
-  labs(x = "Parameter estimates", y = "Parameters", fill = "Group") +
+  labs(x = "Estimated Choice-Congruence (std)", y = "Parameters", fill = "Group") +
   plot_title +
   scale_fill_manual(values = colors,  breaks = c("NT", "ASC", "PDA")) + 
   theme_minimal() +  # Using theme_minimal() instead of theme_clean()
