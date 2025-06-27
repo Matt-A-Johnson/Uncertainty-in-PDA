@@ -1,0 +1,179 @@
+---
+title: "NHST PRL analysis_26.05.25"
+format: html
+editor: visual
+---
+
+# Comparing frequentist and Bayesian approaches
+
+Hypothetically, modelling the same data, an **NHST** might suggest a statistically significant effect (e.g., *p* \< .05), while a similar **Bayesian** model could suggest high uncertainty and no clear evidence of an effect (e.g., credible interval overlaps 0). This might happen when looking for a small effect in a large sample with minimal variance.
+
+Here, we check to see if NHST might offer significant results. We do this to emphasize the utility of Bayesian modelling approaches when searching for small effects in heterogenious populations (e.g., autism).
+
+# Data preparation
+
+## Load data
+
+Load in data:
+
+```{r}
+#Read in saved data file:
+data <- read.csv("Data.csv")
+
+#Prepare and standardise variables:
+std_data <- data %>%
+  mutate(
+    EDAQ = standardize(EDAQ),
+    MASQ = standardize(MASQ),
+    RLLR = standardize(RLLR),
+    perseveration = standardize(perseveration),
+    regression = standardize(regression),
+    loseShift = standardize(loseShift)
+  ) %>%
+  select(subject, EDAQ, MASQ, RLLR, loseShift, perseveration, regression, neurotype) %>%
+  distinct()
+```
+
+# NHST analysis
+
+Run NHST regression models for anxiety (MASQ), PDA behaviour (EDA-QA), and autism (neurotype) predicting lose-shift behaviour:
+
+```{r}
+#Fit the model where lose-shift behaviours are predicted by MASQ scores by neurotype:
+nhstLSM <- lm(
+  loseShift ~ MASQ*neurotype,
+  data = std_data
+  )
+
+#Fit the model where lose-shift behaviours are predicted by a MASQ*neurotype and EDA-QA*neurotype:
+nhstLSME <- lm(
+  loseShift ~ MASQ*neurotype + EDAQ*neurotype,
+  data = std_data
+  )
+
+#View output:
+summary(nhstLSM)
+summary(nhstLSME)
+```
+
+Run NHST regression models for anxiety (MASQ), PDA behaviour (EDA-QA), and autism (neurotype) predicting perseveration:
+
+```{r}
+#Fit the model where perseverative errors are predicted by MASQ scores by neurotype:
+nhstPM <- lm(
+  perseveration ~ MASQ*neurotype,
+  data = std_data)
+
+#Fit the model where perseverative errors are predicted by a MASQ*neurotype and EDA-QA*neurotype:
+nhstPME <- lm(
+  perseveration ~ MASQ*neurotype + EDAQ*neurotype,
+  data = std_data )
+
+#View output:
+summary(nhstPM)
+summary(nhstPME)
+```
+
+Run NHST regression models for anxiety (MASQ), PDA behaviour (EDA-QA), and autism (neurotype) predicting regression:
+
+```{r}
+#Fit the model where regressive errors are predicted by MASQ scores by neurotype:
+nhstReM <- lm(
+  regression ~ MASQ*neurotype,
+  data = std_data  )
+
+#Fit the model where regressive errors are predicted by a MASQ*neurotype and EDA-QA*neurotype:
+nhstReME <- lm(
+  regression ~ MASQ*neurotype + EDAQ*neurotype,
+  data = std_data  )
+
+#View output:
+summary(nhstReM)
+summary(nhstReME)
+```
+
+Run NHST regression models for anxiety (MASQ), PDA behaviour (EDA-QA), and autism (neurotype) predicting RLLR:
+
+```{r}
+#Fit the model where relative log learning rate (RLLR) are predicted by MASQ scores by neurotype:
+nhstRM <- lm(
+  RLLR ~ MASQ*neurotype,
+  data = std_data)
+
+#Fit the model where relative log learning rate (RLLR) are predicted by MASQ and EDA-QA scores by neurotype:
+nhstRME <- lm(
+  RLLR ~ MASQ*neurotype + EDAQ*neurotype,
+  data = std_data  )
+
+#View output:
+summary(nhstRM)
+summary(nhstRME)
+```
+
+# Conclusion
+
+In most cases, the above frequentist results are far from significant. However, the effect of EDA-QA on RLLR is significant. Posterior estimates from the Bayesian version of this regression model are broad and overlap 0, suggesting uncertainty in this effect; the effect is not clearly distinguishable from no effect.
+
+```{r}
+#Load the model output from a file:
+modRME <- readRDS("modRME_output.rds")
+
+#Return model output:
+summary(modRME)
+
+#Read in posterior samples .csv to data frame:
+modRME_posterior <- read.csv("modRME_posterior.csv")
+
+
+#Filter out 'lprior' and 'lp__':
+modRME_posterior <- modRME_posterior[, c("b_Intercept", "b_MASQ", "b_neurotypeNT","b_EDAQ", "b_MASQ.neurotypeNT", "b_neurotypeNT.EDAQ", "sigma")]
+
+#Convert the data frame to long format:
+modRME_posterior_long <- pivot_longer(modRME_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+modRME_posterior_long$Parameter <- recode(modRME_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept",
+                                            "b_MASQ" = "MASQ", 
+                                            "b_neurotypeNT" = "neurotypeNT",
+                                            "b_EDAQ" = "EDAQ", 
+                                            "b_MASQ.neurotypeNT" = "MASQ:neurotypeNT", 
+                                            "b_neurotypeNT.EDAQ" = "neurotypeNT:EDAQ", 
+                                            "sigma" = "Sigma")
+
+#Extract group information from parameter names:
+modRME_posterior_long$Group <- sub(":.*", "", modRME_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+modRME_posterior_long$Parameter <- factor(modRME_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept","MASQ","neurotypeNT","EDAQ","MASQ:neurotypeNT","neurotypeNT:EDAQ","Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+#Plot:
+ggplot(modRME_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+ggsave( 'RLLR_dist_EDAQ.png', plot = last_plot(), dpi = 300)
+```
+
+In this instance, leveraging a Bayesian approach to data modelling has utility over frequentist statistics, allowing for the quantification of uncertainty in parameter estimates (i.e., credible intervals); while frequentist statistics might indicate a significant effect, Bayesian analysis suggests we cannot be sure of the utility of this effect.
