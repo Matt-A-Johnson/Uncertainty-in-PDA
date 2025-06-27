@@ -1,0 +1,266 @@
+---
+title: "Post hoc LR analysis_26.05.25"
+format: html
+editor: visual
+---
+
+# Investigating the relationship between learning rates and inverse temperature parameter values
+
+According to Zhang et al. (2020), in a binary choice task in which probabilistic feedback is stable, low α and high β should be optimal (e.g., choosing the most frequently rewarded option most often). Conversely, when feedback associations are reversed frequently (e.g., every 20 trials), high α and high β should be optimal.
+
+Here, we were interested to further examine (visually) the relationship between learning rates (α) and inverse temperature (β) for NT and ASC groups in each condition.
+
+## Load data
+
+Load in data:
+
+```{r}
+#Load data:
+LR_21_80 <- read.csv("results_RL_summary_21_80.csv")  #This is learning rates calculated using trials 21-80 in each condition
+LR <- read.csv("results_RL_summary.csv")              #This is learning rates calculated using trials 01-80 in each condition
+
+LR_01_20 <- read.csv("results_RL_summary_01_20.csv")  #This is learning rates calculated using trials 01-20 in each condition
+```
+
+Prepare data for plotting:
+
+```{r}
+#Extract unique participant IDs with their corresponding neurotype:
+df_R_unique <- read.csv("LM_Data.csv") %>%
+  select(subject, neurotype,EDAQ) %>%
+  distinct(subject, .keep_all = TRUE)  # Keep only one diagnosis per subject
+
+#Merge neurotype with learning rate data:
+LR_21_80_unique <- LR_21_80 %>%
+  left_join(df_R_unique, by = "subject")
+
+#Create a long form data frame:
+long_LR_21_80 <- pivot_longer(LR_21_80_unique, 
+                             cols = c(stableAlpha, volatileAlpha), 
+                             names_to = "condition", 
+                             values_to = "LR")  
+```
+
+# Visualise
+
+Plot learning rates and inverse temperatures:
+
+```{r}
+#Pivot data to long format:
+long_plot_data <- LR_21_80_unique %>%
+  pivot_longer(
+    cols = c(stableAlpha, stableBeta, volatileAlpha, volatileBeta),
+    names_to = "cond_param",
+    values_to = "value"
+  ) %>%
+  separate(cond_param, into = c("condition", "parameter"), sep = "(?<=stable|volatile)(?=Alpha|Beta)", remove = FALSE) %>%
+  mutate(
+    condition = recode(condition, stable = "Stable", volatile = "Volatile"),
+    parameter = recode(parameter, Alpha = "Learning Rate", Beta = "Inverse Temperature")
+  )
+
+#Plot learning rates and inverse temperature by condition: 
+p_alpha <- long_plot_data %>%
+  filter(parameter == "Learning Rate") %>%
+  ggplot(aes(x = condition, y = value, fill = condition)) +
+  geom_boxplot(alpha = 0.4, width = 0.4) +
+  labs(x = "Condition", y = "Learning Rate", title = "Learning Rate (α)") +
+  scale_fill_manual(values = c("Stable" = "#cc99ff", "Volatile" = "#66cccc")) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+p_beta <- long_plot_data %>%
+  filter(parameter == "Inverse Temperature") %>%
+  ggplot(aes(x = condition, y = value, fill = condition)) +
+  geom_boxplot(alpha = 0.4, width = 0.4) +
+  labs(x = "Condition", y = "Inverse Temperature", title = "Inverse Temperature (β)") +
+  scale_fill_manual(values = c("Stable" = "#cc99ff", "Volatile" = "#66cccc")) +
+  theme_minimal() +
+  theme(legend.position = "none")
+p_alpha + p_beta
+
+#Also plot learning rate and inverse temperature by condition and group:
+ggplot(data = long_plot_data, aes(x = condition, y = value, fill = condition)) +
+  geom_boxplot(alpha = 0.3, width = 0.4, position = position_dodge(width = 0.8)) +
+  labs(x = "Condition", y = "Value") +
+  scale_x_discrete(labels = c("stableAlpha" = "Stable", "volatileAlpha" = "Volatile")) +
+  ggtitle("Learning Rate (α) and Inverse Temperature (β) by 
+Condition and Group") +
+  scale_fill_manual(values = c("Stable" = "#cc99ff", "Volatile" = "#66cccc")) +
+  facet_grid(parameter ~ neurotype, scales = "free_y") +  # Separate panels & scales
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    strip.text = element_text(size = 13),
+    plot.title = element_text(size = 16),
+    legend.position = "none"
+  )
+
+###################################################################################
+
+#Calculate mean learning rate and mean inverse temperature for both NT and ASC:
+mean_plot_data <- long_plot_data %>%
+  group_by(condition, neurotype, parameter) %>%
+  summarise(mean_value = mean(value), .groups = "drop")
+
+#Plot raw learning rates and inverse temperatures with group means:
+ggplot(data = long_plot_data, aes(x = condition, y = value, fill = condition)) +
+  geom_jitter(color = "#9ED4D1", width = 0.1, alpha = 0.7) +
+  labs(x = "Condition", y = "Value") +
+  scale_x_discrete(labels = c("stable" = "Stable", "volatile" = "Volatile")) +
+  ggtitle("Learning Rate (α) and Inverse Temperature (β) by 
+Condition and Group") +
+  facet_grid(parameter ~ neurotype, scales = "free_y") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    strip.text = element_text(size = 13),
+    plot.title = element_text(size = 16),
+    legend.position = "none"
+  ) +
+  # Add mean points
+  geom_point(
+    data = mean_plot_data,
+    aes(x = condition, y = mean_value),
+    color = "#336666", size = 4, shape = 18
+  ) +
+  # Add lines connecting means
+  geom_line(
+    data = mean_plot_data,
+    aes(x = condition, y = mean_value, group = neurotype),
+    color = "#336666", size = 1
+  )
+```
+
+# Interpretation of learning rates and inverse temperatures
+
+According to Zhang et al. (2020), in a binary choice task in which probabilistic feedback is stable, low α and high β should be optimal (e.g., choosing the most frequently rewarded option most often). Conversely, when feedback associations are reversed frequently (e.g., every 20 trials), high α and high β should be optimal.
+
+Fitting a R-W learning model to our data, we found that both NT and ASC groups returned comparable values for both α and β. In both groups, mean α was higher in the volatile compared to the stable condition. This suggests that both groups were able to learn probabilistic associations in the stable condition, but took longer to learn these associations in the volatile condition (i.e., were more influenced by negative feedback).
+
+When compared with mean α, mean β generated by both groups are seemingly at odds with Zhang et al. (2020)'s optimal: when feedback associations are reversed frequently (e.g., every 20 trials), high α and high β should be optimal. Instead, a high mean α and a low mean β (as demonstrated by both NT and ASC groups above) suggests that probabilistic associations in the volatile condition may not have been learnt on average - where high α reflects greater sensitivity to feedback and low β indicates random (i.e., less consistent) choice responses.
+
+Theory implicates autism/anxiety-related differences in how individuals flexibly learn in stable and volatile contexts. Thus, we were interested in how group performance differed between stable and volatile contexts - if both NT and ASC participants struggled to learn in the volatile condition, it should not make a difference to our primary conclusions. What matters is the relative shift in learning and decision parameters across conditions within each group. The fact that both NT and ASC participants exhibited similar patterns - a higher α and lower β in the volatile condition - suggests that while the task may have exceeded optimal volatility for all participants, group-based differences in adaptability or flexibility can still be meaningfully assessed. In other words, even if average performance in the volatile condition was suboptimal, the comparison between conditions still allows us to examine whether one group adjusted their learning strategies more than the other in response to environmental change.
+
+While this post hoc consideration of the relationship between α and β does not greatly influence our current interpretation of results (see BARG PRL analysis_17.03.25), it does provide a clearer view of how participants completed the PRL task - it seems that the volatile condition may have been too volatile for most participants to confidently learn choice-feedback associations. It might do to remain mindful of task difficulty in future studies.
+
+# Relationship between PDA and inverse temperature
+
+β reflects the consistency in a participant's choice response (Zhang et al., 2020), and is thus related to choice-congruence (i.e., the percentage of trials in which a participant chooses the most frequently rewarded options). Given that PDA was realated - though imprecisely - to lower choice-congruence in the stable condition, it might be interesting to see if/how EDA-QA scores relate to β values:
+
+```{r}
+#Standardise variables:
+βE_data <- long_LR_21_80 %>%
+  mutate(
+    EDAQ = standardize(EDAQ),
+    β = standardize(stableBeta)
+  )
+
+#Run correlative model where EDA-QA scores predict β in stable condition:
+β_EDAQ <- brm(β ~ EDAQ, data = βE_data ,
+  backend = "cmdstan",
+  family = gaussian(),
+  prior = c(
+    prior(normal(0, 1), class = "b"),
+    prior(exponential(1), class = "sigma")
+  ),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "β_EDAQ_cor.rds"
+  )
+```
+
+Review the output:
+
+```{r}
+#Load the model output from a file:
+β_EDAQ <- readRDS("β_EDAQ_cor.rds")
+
+#Return model output:
+summary(β_EDAQ)
+
+#Extract posterior samples:
+β_EDAQ_posterior <- posterior_samples(β_EDAQ)
+
+
+#Filter out 'lprior' and 'lp__':
+β_EDAQ_posterior <- β_EDAQ_posterior[, c("b_Intercept", "b_EDAQ", "sigma")]
+
+#Convert the data frame to long format:
+β_EDAQ_posterior_long <- pivot_longer(β_EDAQ_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+β_EDAQ_posterior_long$Parameter <- recode(β_EDAQ_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept",
+                                            "b_EDAQ" = "EDAQ", 
+                                            "sigma" = "Sigma")
+
+#Extract group information from parameter names:
+β_EDAQ_posterior_long$Group <- sub(":.*", "", β_EDAQ_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+β_EDAQ_posterior_long$Parameter <- factor(β_EDAQ_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept","EDAQ","Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+ggplot(β_EDAQ_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 1, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+ggsave( 'β_EDAQ_dist.png', plot = last_plot(), dpi = 300)
+```
+
+Plot:
+
+```{r}
+#Load the model output from a file:
+β_EDAQ <- readRDS("β_EDAQ_cor.rds")
+
+#Extract conditional effects:
+ce_β_EDAQ <- conditional_effects(β_EDAQ)
+
+#Convert the specific effect to a data frames:
+ce_β_EDAQ <- as.data.frame(ce_β_EDAQ$`EDAQ`)
+
+#Select relevant columns:
+ce_β_EDAQ <- ce_β_EDAQ %>% 
+  select(EDAQ, estimate__, lower__, upper__)
+
+#Plot for MASQ for sim_modRM:
+ggplot(ce_β_EDAQ, aes(x = EDAQ, y = estimate__)) +
+  geom_point(data = βE_data, aes(x = EDAQ, y = β), color = "#66cccc") +
+  geom_line(aes(y = estimate__),size = 1, color = "#66cccc") +  # Line for estimated effects
+  geom_ribbon(aes(ymin = lower__, ymax = upper__), fill = "#66cccc", alpha = 0.3, color = NA) +  # Ribbons for uncertainty
+  theme_minimal() +  # Use a minimal theme
+  labs(title = "...",
+       x = "EDA-QA Scores (std)",
+       y = "β (std)")
+ggsave( 'β_EDAQ_plot.png', plot = last_plot(), dpi = 300)
+```
+
+Parameter estimates for EDA-QA scores are predominantly negative but overlap 0 - there is likely no meaningful effect of PDA behaviour on inverse temperature. However, there is an uncertain negative trend (i.e., *M* = -0.11 with 0.1 *SD* of uncertainty). That is, a one-standard-deviation increase in PDA behaviours is associated with a -0.11 *SD* decrease in β values. This suggests that PDA is associated with less consistent choice behaviour, echoing the trend that NT and ASC participants with EDA-QA scores above the 67th percentile demonstrated lower choice-congruence compared to NT and ASC participants with EDA-QA scores below the 67th percentile. Taken together, choice-congruence and β values suggest that PDA might be associated with a tendency to choose the most frequently rewarded option less often (compared to individuals with fewer PDA behaviours). However, this interpretation is speculative; parameter estimates overlap 0 and broad credible intervals indicate a large degree of model uncertainty.
