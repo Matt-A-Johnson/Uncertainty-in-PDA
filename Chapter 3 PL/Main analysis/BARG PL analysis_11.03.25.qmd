@@ -314,7 +314,6 @@ mcmc_areas(mod1_brm_posterior,
            point_est = "mean",
            border_size = 0.1,
            prob = 0.89) + plot_title + xlab("Parameter estimates") + ylab("Parameters")
-
 ```
 
 Finally, we can visualise our model-predicted RT values for each group by condition:
