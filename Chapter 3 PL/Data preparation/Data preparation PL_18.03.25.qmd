@@ -612,6 +612,56 @@ for (i in p_n) {
 }
 ```
 
+As a post hoc step, we can look at what type of errors were driving d' exclusions:
+
+```{r}
+#Calculate missess and false alarm rates for each participant:
+error_rates <- df_R %>%
+  group_by(subject) %>%
+  summarise(
+    hits  = sum(trialcode %in% c("target_Trial_rec", "target_Trial_tri") & correct == 1),
+    misses = sum(trialcode %in% c("target_Trial_rec", "target_Trial_tri") & correct == 0),
+    crs   = sum(trialcode %in% c("invalid_Trial_rec", "invalid_Trial_tri") & correct == 1),
+    fas   = sum(trialcode %in% c("invalid_Trial_rec", "invalid_Trial_tri") & correct == 0),
+    miss_rate = misses / (misses + hits),
+    fa_rate = fas / (fas + crs),
+    .groups = "drop"
+  )
+```
+
+We can then visualise these error rates for each participant with d'\<2 in tables:
+
+```{r}
+#Create a variable to house subject and group information (run the code below first to create the PDA group):
+group_df <- df_R %>%
+  select(subject, group) %>%
+  distinct()
+
+#Create a table to visualise the proportion of misses and false alarms for each participant:
+er <- error_rates %>%
+  left_join(dprime_df, by = "subject") %>%    # add dprime
+  left_join(group_df, by = "subject") %>%     # add group
+  mutate(
+    error_bias = case_when(
+      miss_rate > fa_rate ~ "Miss-prone",
+      fa_rate > miss_rate ~ "FA-prone",
+      TRUE ~ "Equal"
+    )
+  ) %>%
+  filter(dprime <= 2)
+er
+
+#We can also see the number of errors by group:
+er %>%
+  group_by(subject) %>%
+  summarise(
+    error = first(error_bias),
+    group = first(group),
+    .groups = "drop"
+  )%>%
+  count(error, group)
+```
+
 We are only interested in correct target trials for our analysis, so extract correct target trials from the data:
 
 ```{r}
@@ -628,8 +678,19 @@ df_R <- merge(df_R, dprime_df, by = "subject")
 
 df_R[df_R$dprime >= 2,]
 
+#We can also see d' exclusions by group (run the code below first to create the PDA group):
+df_R %>%
+  filter(dprime <= 2) %>%
+  group_by(subject) %>%
+  summarise(
+    dprime = first(dprime),
+    group = first(group),
+    .groups = "drop"
+  )%>%
+  count(group)
+
 #Remove any participant with a dprime<2:
-df_R <- df_R[df_R$dprime >= 2, , drop = FALSE]
+#df_R <- df_R[df_R$dprime >= 2, , drop = FALSE]
 
 #Check that worked (lowest value should be >2):
 range(df_R$dprime)
@@ -836,6 +897,12 @@ Finally, save data to .csv:
 ```{r}
 #Write to csv for analysis:
 write.table(block_medians, file="BlockMedians.csv",sep=",",row.names=F)
+
+block_medians <- read.csv("BlockMedians.csv")
+
+pda_counts <- table(block_medians$group, block_medians$diagnosis)
+prop.table(pda_counts, margin = 1) * 100
+table(block_medians$group, block_medians$diagnosis)
 ```
 
 # Trial type data
