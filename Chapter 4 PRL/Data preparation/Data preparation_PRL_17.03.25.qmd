@@ -491,6 +491,8 @@ df_Q %>%
   dplyr::summarize(
     mean_EDAQ = mean(EDAQ, na.rm = TRUE),
     sd_EDAQ = sd(EDAQ, na.rm = TRUE),
+    mean_MASQ = mean(MASQ, na.rm = TRUE),
+    sd_MASQ = sd(MASQ, na.rm = TRUE),
     mean_age = mean(age, na.rm = TRUE),
     sd_age = sd(age, na.rm = TRUE),
     min_age = min(age, na.rm = TRUE),
@@ -499,6 +501,11 @@ df_Q %>%
     female = sum(gender == "Female", na.rm = TRUE),
     other = sum(gender == "Other", na.rm = TRUE)
   )
+
+
+pda_counts <- table(df_Q$group, df_Q$neurotype)
+prop.table(pda_counts, margin = 1) * 100
+table(df_Q$group, df_Q$neurotype)
 ```
 
 Finally, write the processed questionnaire data to .csv:
@@ -1368,6 +1375,49 @@ By Condition") +
     legend.position = "none"
   ) +
   facet_grid(. ~ neurotype)
+
+#We can also apply colours for those with postive, negative, and neutral changes between stable and volatile conditions.
+
+#Begin by defining postive, negative, and neutral values:
+wide_LR <- long_LR_21_80 %>%
+  pivot_wider(names_from = condition, values_from = LR) %>%
+  mutate(diff = volatileAlpha - stableAlpha,
+         change_direction = case_when(
+           diff >  0.05 ~ "Positive",
+           diff < -0.05 ~ "Negative",
+           TRUE         ~ "Neutral"
+         ))
+
+#Pivot to long form:
+long_LR_colored <- wide_LR %>%
+  pivot_longer(cols = c(stableAlpha, volatileAlpha), names_to = "condition", values_to = "LR")
+
+#Ensure factor levels are in desired order
+long_LR_colored$change_direction <- factor(
+  long_LR_colored$change_direction,
+  levels = c("Positive", "Neutral", "Negative")
+)
+
+#And plot with separate colours for postive, negative, and neutral (i.e., -0.05-0.05) changes in LR:
+ggplot(data = long_LR_colored, aes(x = condition, y = LR, group = subject, color = change_direction)) +
+  geom_line(alpha = 0.8) +  
+  geom_point(size = 2) +  
+  labs(x = "Condition", y = "Learning Rate", color = "Change Direction") +
+  scale_x_discrete(labels = c("stableAlpha" = "Stable", "volatileAlpha" = "Volatile")) +
+  scale_color_manual(
+    values = c("Positive" = "#9ED4D1", "Neutral" = "#336666", "Negative" = "#cc99ff")
+  ) +
+  ggtitle("Learning Rates Computed From Trials 21–80 by Condition") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.position = "right"
+  ) +
+  facet_grid(. ~ neurotype)
 ```
 
 For both NT and ASC groups, participants demonstrate higher average learning rates in the volatile condition compared to the stable condition - this trend is in keeping with what we expect from a learning task with stable and volatile learning conditions.
@@ -1510,9 +1560,313 @@ ggplot(data = Volatile1st_21_80, aes(x = condition, y = LR, group = subject, col
   facet_grid(blockorder ~ neurotype)
 ```
 
+We can also view individual participant LR for each condition and the change between them.
+
+```{r}
+#Summarize LR per participant and condition (stable vs volatile):
+Stable1st_summary <- Stable1st_21_80 %>%
+  group_by(subject, condition, blockorder, neurotype) %>%  # keep grouping variables you want in the plot
+  summarise(LR = mean(LR, na.rm = TRUE), .groups = "drop")
+
+Volatile1st_summary <- Volatile1st_21_80 %>%
+  group_by(subject, condition, blockorder, neurotype) %>%
+  summarise(LR = mean(LR, na.rm = TRUE), .groups = "drop")
+
+#Pivot wider to compute difference per participant:
+Stable1st_diff <- Stable1st_summary %>%
+  pivot_wider(names_from = condition, values_from = LR) %>%
+  mutate(change = volatileAlpha - stableAlpha,
+         change_direction = case_when(
+           change > 0.05 ~ "Positive",
+           change < -0.05 ~ "Negative",
+           TRUE ~ "Neutral"
+         ))
+
+Volatile1st_diff <- Volatile1st_summary %>%
+  pivot_wider(names_from = condition, values_from = LR) %>%
+  mutate(change = stableAlpha - volatileAlpha,  # reversed difference
+         change_direction = case_when(
+           change > 0.05 ~ "Negative",
+           change < -0.05 ~ "Positive",
+           TRUE ~ "Neutral"
+         ))
+
+#Pivot longer again for plotting lines per participant:
+Stable1st_plotdata <- Stable1st_diff %>%
+  pivot_longer(cols = c(stableAlpha, volatileAlpha),
+               names_to = "condition",
+               values_to = "LR")
+
+Volatile1st_plotdata <- Volatile1st_diff %>%
+  pivot_longer(cols = c(stableAlpha, volatileAlpha),
+               names_to = "condition",
+               values_to = "LR")
+
+#Ensure factor levels are in desired order
+Stable1st_plotdata$change_direction <- factor(
+  Stable1st_plotdata$change_direction,
+  levels = c("Positive", "Neutral", "Negative")
+)
+
+Volatile1st_plotdata$change_direction <- factor(
+  Volatile1st_plotdata$change_direction,
+  levels = c("Positive", "Neutral", "Negative")
+)
+
+#Plot individual participant LR for each condition and the change between them. Use different colours to symbolise positive, negative, and neutral changes between stbale and volatile conditions:
+ggplot(Stable1st_plotdata, aes(x = condition, y = LR, group = subject, color = change_direction)) +
+  geom_line() +
+  geom_point() +
+  scale_x_discrete(labels = c("stableAlpha" = "Stable", "volatileAlpha" = "Volatile")) +
+  scale_color_manual(
+  values = c("Positive" = "#9ED4D1", "Neutral" = "#336666", "Negative" = "#cc99ff"),
+  labels = c("Positive" = "Stable < Volatile", "Neutral" = "Difference < 0.1", "Negative" = "Stable > Volatile")
+) +
+  ylim(0, 1) +
+  labs(x = "", y = "Learning Rate", color = "Change Direction") +
+  ggtitle("Learning Rates Computed From Trials 21-80 Plotted 
+By Condition Showing Individual Participants' Change in LR") +
+  facet_grid(blockorder ~ neurotype) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 18),
+    axis.text.y = element_text(size = 18),
+    plot.title = element_text(size = 16),
+    legend.position = "none",
+    strip.text.x = element_text(size = 18),
+    strip.text.y = element_blank(),           # ← hides all y strip labels
+    strip.text.y.left = element_blank(),      # ← just in case placement is on left
+    strip.text.y.right = element_blank()      # ← just in case placement is on right
+  ) +
+
+ggplot(Volatile1st_plotdata, aes(x = condition, y = LR, group = subject, color = change_direction)) +
+  geom_line() +
+  geom_point() +
+  scale_x_discrete(limits = c("volatileAlpha", "stableAlpha"),
+                   labels = c("stableAlpha" = "Stable", "volatileAlpha" = "Volatile")) +
+  scale_color_manual(
+  values = c("Positive" = "#9ED4D1", "Neutral" = "#336666", "Negative" = "#cc99ff"),
+  labels = c("Positive" = "Stable < Volatile", "Neutral" = "Difference < 0.1", "Negative" = "Stable > Volatile")
+) +
+  ylim(0, 1) +
+  labs(x = "", y = "", color = "Difference in 
+learning rate") +
+  facet_grid(blockorder ~ neurotype) +
+  theme_minimal() +
+ theme(
+   legend.title = element_text(size = 18),
+   legend.text = element_text(size = 18),
+   axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 18),
+    axis.text.y = element_text(size = 18),
+    plot.title = element_text(size = 16),
+    legend.position = "right",
+    strip.text.x = element_text(size = 18),
+    strip.text.y = element_blank(),           # ← hides all y strip labels
+    strip.text.y.left = element_blank(),      # ← just in case placement is on left
+    strip.text.y.right = element_blank()      # ← just in case placement is on right
+  )
+ggsave( 'LR_change.png', plot = last_plot(), dpi = 300, width = 12, height = 8)
+
+#c("Positive" = "↑α: Stable < Volatile", "Neutral" = "No Change", "Negative" = "↑α: Stable > Volatile")
+#c("Positive" = "Low α in stable/high α in volatile", "Neutral" = "No Change", "Negative" = "High α in stable/low α in volatile")
+
+#Also plot a version of the above where with a graded colour change to show participants' LRs in stable and volatile:
+ggplot(Stable1st_plotdata, aes(x = condition, y = LR, group = subject, color = change)) +
+  geom_line() +
+  geom_point() +
+  scale_x_discrete(labels = c("stableAlpha" = "Stable", "volatileAlpha" = "Volatile")) +
+  scale_color_gradient2(
+    low = "darkred",    # stable > volatile
+    mid = "gray80",       # neutral
+    high = "darkgreen",     # stable < volatile
+    midpoint = 0
+  ) +
+  ylim(0, 1) +
+  labs(x = "", y = "Learning Rate") +
+  ggtitle("Learning Rates Computed From Trials 21-80 \nShowing Differences in Stable and Volatile Conditions for Each Participant") +
+  facet_grid(blockorder ~ neurotype) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 18),
+    axis.text.y = element_text(size = 18),
+    plot.title = element_text(size = 16),
+    legend.position = "none",
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    strip.text.x = element_text(size = 18),
+    strip.text.y = element_blank()
+  ) +
+  
+  ggplot(Volatile1st_plotdata, aes(x = condition, y = LR, group = subject, color = change)) +
+  geom_line() +
+  geom_point() +
+  scale_x_discrete(limits = c("volatileAlpha", "stableAlpha"),
+                   labels = c("stableAlpha" = "Stable", "volatileAlpha" = "Volatile")) +
+  scale_color_gradient2(
+    low = "darkgreen",
+    mid = "gray80",
+    high = "darkred",
+    midpoint = 0,
+    name = "",
+  breaks = c(-0.75, 0.75),
+  labels = c("Stable < Volatile", "Stable > Volatile")
+  ) +
+  ylim(0, 1) +
+  labs(x = "", y = "") +
+  facet_grid(blockorder ~ neurotype) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 18),
+    axis.text.y = element_text(size = 18),
+    legend.title = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    plot.title = element_text(size = 16),
+    legend.position = "right",
+    strip.text.x = element_text(size = 18),
+    strip.text.y = element_blank()
+  )
+ggsave( 'LR_differences.png', plot = last_plot(), dpi = 300, width = 12, height = 8)
+```
+
 Both NT and ASC participants demonstrate higher learning rates in the volatile compared to the stable condition, regardless of which condition was completed first - the paradigm seemingly captures a difference in learning rates for stable and volatile environments. In addition, there doesn't seem to be much difference between learning rates by group - research suggests that autism is associated with overall higher learning rates (Crawley et al., 2020), such that we expected learning rates to be higher in both stable and volatile conditions for the ASC group compared to the NT group.
 
-Also review learning rates calculated using all trials in each condition; visualise learning rates by condition:
+It might also be useful to statistically check the reliability of the learning rate measure ($\alpha$). We can do this by running a mixed effects model that predicts $$\alpha$$ using task condition (stable and volatile) with an interaction term for neurotype:
+
+```{r}
+#Extract unique participant IDs with their corresponding neurotype:
+df_R_unique <- read.csv("LM_Data.csv") %>%
+  select(subject, neurotype) %>%
+  distinct(subject, .keep_all = TRUE)  # Keep only one diagnosis per subject
+
+#Merge neurotype with learning rate data:
+LR_21_80_unique <- LR_21_80 %>%
+  left_join(df_R_unique, by = "subject")
+
+#Create a long form data frame:
+long_LR_21_80 <- pivot_longer(LR_21_80_unique, 
+                             cols = c(stableAlpha, volatileAlpha), 
+                             names_to = "condition", 
+                             values_to = "LR")  
+#Model:
+rv_check <- brm(
+  LR ~ condition * neurotype + (1 | subject), 
+  data = long_LR_21_80,
+  backend = "cmdstan",
+  family = gaussian(),
+  control = list(adapt_delta = 0.99),
+  cores = 4,
+  file = "rv_check_output.rds"
+)
+
+get_prior(rv_check)
+```
+
+We can plot the output:
+
+```{r}
+#Load data:
+rv_check <- readRDS("rv_check_output.rds")
+
+#Extract posterior samples:
+rv_check_posterior <- posterior_samples(rv_check)
+
+#Filter out 'lprior' and 'lp__':
+rv_check_posterior <- rv_check_posterior[, c("b_Intercept", "b_conditionvolatileAlpha", "b_neurotypeNT", "b_conditionvolatileAlpha:neurotypeNT", "sd_subject__Intercept", "sigma")]
+
+#Convert the data frame to long format:
+rv_check_posterior_long <- pivot_longer(rv_check_posterior, 
+                                        cols = everything(), 
+                                        names_to = "Parameter", 
+                                        values_to = "Estimate")
+
+#Rename parameters to 'Intercept', 'MASQ', 'EDAQ', and 'sigma':
+rv_check_posterior_long$Parameter <- recode(rv_check_posterior_long$Parameter,
+                                            "b_Intercept" = "Intercept", 
+                                            "b_conditionvolatileAlpha" = "Condition:Volatile", 
+                                            "b_neurotypeNT" = "Neurotype:NT", 
+                                            "b_conditionvolatileAlpha:neurotypeNT" = "Condition:Volatile:Neurotype:NT", 
+                                            "sd_subject__Intercept" = "Subject_SD", 
+                                            "sigma" = "Sigma")
+
+#Extract group information from parameter names:
+rv_check_posterior_long$Group <- sub(":.*", "", rv_check_posterior_long$Parameter)
+
+#Reorder the parameters and flip the order:
+rv_check_posterior_long$Parameter <- factor(rv_check_posterior_long$Parameter, 
+                                            levels = rev(c("Intercept", "Condition:Volatile", "Neurotype:NT", "Condition:Volatile:Neurotype:NT", "Subject_SD", "Sigma")))
+
+#Plot marginal posterior distributions with specified colors:
+plot_title <- ggtitle("Posterior distributions",
+                      subtitle = "with means and 95% HDI")
+
+ggplot(rv_check_posterior_long, aes(x = Estimate, y = Parameter, fill = neurotype)) +
+  stat_halfeye(point_interval = mean_hdi, .width = c(0.95), size = 0.5, , height = 3, fill = "#9ED4D1") +  # Adjusting the size of the points
+  #scale_fill_manual(values = colors) +
+  labs(x = "Parameter estimates", y = "Parameters", fill = "Neurotype") +
+  plot_title +
+  theme_minimal() +  # Using theme_minimal() instead of theme_clean()
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(),  # Remove major grid lines
+        panel.grid.minor = element_blank(),  # Remove minor grid lines
+        axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    plot.title = element_text(size = 16),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)) +  # Increase font size of axis titles) +  # Add a single line at 0 on the x-axis
+  geom_vline(xintercept = 0, linetype = "dashed")  # Add a dashed line at x = 0
+ggsave( 'rv_check_dist.png', plot = last_plot(), dpi = 300)
+```
+
+Below is a table displaying parameter estimates and their brief interpretation:
+
+| Term | Estimate | 95% CI | Interpretation |
+|------|----------|--------|----------------|
+
+|  |  |  |  |
+|----|----|----|----|
+| **Intercept** | 0.33 | \[0.27, 0.39\] | The estimated learning rate in the **stable condition for ASC participants** (baseline group/condition). |
+
++----------------------------+----------+-------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **conditionvolatileAlpha** | 0.14     | \[0.06, 0.22\]                      | Learning rate is **higher in the volatile condition** than stable by **0.14 units** on average for **ASC** participants. The direction of this effect is **relatively certain** (HDI excludes 0). |
++----------------------------+----------+-------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+|  |  |  |  |
+|----|----|----|----|
+| **neurotypeNT** | –0.06 | \[–0.14, 0.03\] | NT participants have slightly lower learning rates than ASC in the **stable condition**, but there is relative **uncertainty** in this effect. |
+
+|  |  |  |  |
+|----|----|----|----|
+| **conditionvolatileAlpha:neurotypeNT** | 0.07 | \[–0.05, 0.19\] | The volatility effect is **slightly larger** in NT than ASC by 0.07, but there is relative **uncertainty** in this effect. |
+
+The above output suggests that:
+
+-   The task manipulation (stable vs volatile) is working - learning rates increase in the volatile condition, which aligns with theoretical predictions.
+
+<!-- -->
+
+-    This effect is meaningful and systematic, not noise - participants consistently adjust learning rates across conditions.
+
+<!-- -->
+
+-    Across both neurotypes, the direction is preserved (as the green lines also showed visually above).
+
+<!-- -->
+
+-    The individual differences are small (random effect SD = 0.04), suggesting that most variability in learning rate is explained by the fixed effects rather than large between-subject fluctuations.
+
+Taken together, we might conclude that learning rates measured here reliably increase in the volatile condition, supporting reliability/validity of the measure.
+
+The above used trials 21-80. We can also review learning rates calculated using all trials in each condition; visualise learning rates by condition:
 
 ```{r}
 #Extract unique participant IDs with their corresponding neurotype information:
